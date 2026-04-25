@@ -216,3 +216,14 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+
+# Generated pipeline artifacts
+*.html
+*.xlsx
+*.pkl
+*.csv
+plots/
+log/
+backtest/
+group_stats/
