@@ -62,6 +62,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **При добавлении нового тикера:** скопировать структуру `rts/` целиком, в каждом `settings.yaml` обновить `ticker`/`ticker_lc`/`ticker_close`/`ticker_open`, переименовать `run_<ticker>.py`. Регулярная замена `rts`→`<new>` опасна: она цепляет английские слова `startswith`, `reports` и т.п. Использовать regex с не-буквенными границами: `(?<![a-zA-Z])rts(?![a-zA-Z])`.
 
-**Артефакты пайплайна:** `*.html`, `*.xlsx`, `*.pkl`, `plots/`, `log/`, `backtest/`, `group_stats/` — в `.gitignore`. `rules.yaml` коммитится (это конфиг, а не артефакт), хотя и генерируется `rules_recommendation.py`.
+**Артефакты пайплайна:** `*.html`, `*.xlsx`, `*.pkl`, `plots/`, `log/`, `backtest/`, `group_stats/`, `rules.yaml` — в `.gitignore`. `rules.yaml` генерируется `rules_recommendation.py` и у каждой локальной машины свой (зависит от прогонов sentiment-анализа).
 
 **Внешние пути в settings.yaml** указывают на машину разработчика (`C:/Users/Alkor/gd/...`) — md-файлы новостей и SQLite-базы котировок лежат вне репозитория и не версионируются.
