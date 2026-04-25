@@ -52,9 +52,6 @@ VALID_ACTIONS = {"follow", "invert", "skip"}
 def resolve_sentiment_pkl(settings: dict) -> Path:
     """Возвращает абсолютный путь к PKL-файлу с sentiment-оценками."""
     sentiment_path = Path(settings.get("sentiment_output_pkl", "sentiment_scores.pkl"))
-    model = str(settings.get("sentiment_model", "model"))
-    model_slug = re.sub(r"[^A-Za-z0-9._-]+", "_", model).strip("_") or "model"
-    sentiment_path = sentiment_path.with_name(f"{sentiment_path.stem}_{model_slug}{sentiment_path.suffix}")
     return sentiment_path if sentiment_path.is_absolute() else TICKER_DIR / sentiment_path
 
 
@@ -622,6 +619,7 @@ def build_qs_report(result: pd.DataFrame, ticker: str, model_name: str, output_h
     qs.reports.html(returns, benchmark=None, output=str(output_html),
                     title=report_title)
     _replace_html_title(output_html, report_title)
+    _insert_qs_notional_caption(output_html, notional_capital)
 
 
 def _replace_html_title(output_html: Path, title: str) -> None:
@@ -632,6 +630,45 @@ def _replace_html_title(output_html: Path, title: str) -> None:
         html = html.replace("</head>", f"{title_tag}\n</head>", 1)
     output_html.write_text(html, encoding="utf-8")
 
+def _format_notional_capital(value: float) -> str:
+    """Форматирует капитал для подписи QuantStats-отчета."""
+    if float(value).is_integer():
+        return f"{value:,.0f}".replace(",", " ")
+    return f"{value:,.2f}".replace(",", " ")
+
+
+def _insert_qs_notional_caption(output_html: Path, notional_capital: float) -> None:
+    html = output_html.read_text(encoding="utf-8")
+    caption = (
+        '<p id="notional-capital-caption" '
+        'style="font-size: 16px; margin: -8px 0 24px 0; color: #444;">'
+        f"Бэктест 1 контрактом с начальным капиталом: "
+        f"{escape(_format_notional_capital(notional_capital), quote=False)}"
+        "</p>"
+    )
+    html = re.sub(
+        r'\s*<p id="notional-capital-caption".*?</p>',
+        "",
+        html,
+        count=1,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    html, count = re.subn(
+        r"(<h1[^>]*>.*?</h1>)",
+        rf"\1\n{caption}",
+        html,
+        count=1,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    if count == 0:
+        html = re.sub(
+            r"(<body[^>]*>)",
+            rf"\1\n{caption}",
+            html,
+            count=1,
+            flags=re.IGNORECASE,
+        )
+    output_html.write_text(html, encoding="utf-8")
 
 @app.command()
 def main(

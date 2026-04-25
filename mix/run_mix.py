@@ -1,7 +1,7 @@
 """
 Оркестратор всех модельных пайплайнов для тикера MIX.
 
-Скрипт находит в подпапках `mix/<model>/` файлы вида `run_<model>.py`
+Скрипт находит в подпапках `mix/<model>/` `run_report.py`
 (модельные оркестраторы) и запускает их по очереди.
 
 Каждый модельный оркестратор сам прогоняет 4 шага своего пайплайна
@@ -30,12 +30,12 @@ app = typer.Typer(help="Последовательный запуск пайпл
 
 
 def discover_model_runners() -> list[Path]:
-    """Возвращает отсортированный список оркестраторов вида mix/<model>/run_<model>.py."""
+    """Возвращает отсортированный список оркестраторов вида mix/<model>/run_report.py."""
     runners: list[Path] = []
     for child in sorted(TICKER_DIR.iterdir()):
         if not child.is_dir():
             continue
-        candidate = child / f"run_{child.name}.py"
+        candidate = child / "run_report.py"
         if candidate.exists():
             runners.append(candidate)
     return runners
