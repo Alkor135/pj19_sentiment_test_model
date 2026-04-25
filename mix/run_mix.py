@@ -1,7 +1,7 @@
 """
-Оркестратор всех модельных пайплайнов для тикера RTS.
+Оркестратор всех модельных пайплайнов для тикера MIX.
 
-Скрипт находит в подпапках `rts/<model>/` файлы вида `run_<model>.py`
+Скрипт находит в подпапках `mix/<model>/` файлы вида `run_<model>.py`
 (модельные оркестраторы) и запускает их по очереди.
 
 Каждый модельный оркестратор сам прогоняет 4 шага своего пайплайна
@@ -9,9 +9,9 @@
 sentiment_backtest). Этот скрипт — слой выше: он только перебирает модели.
 
 Запуск:
-python rts/run_rts.py
-python rts/run_rts.py --only gemma3_12b,gemma4_e2b,gemma4_e4b,qwen2.5_14b,qwen2.5_7b,qwen3_14b --keep-going
-python rts/run_rts.py --keep-going  «продолжать дальше»
+python mix/run_mix.py
+python mix/run_mix.py --only gemma3_12b,gemma4_e2b,gemma4_e4b,qwen2.5_14b,qwen2.5_7b,qwen3_14b --keep-going
+python mix/run_mix.py --keep-going  «продолжать дальше»
 """
 
 from __future__ import annotations
@@ -26,11 +26,11 @@ import typer
 
 TICKER_DIR = Path(__file__).resolve().parent
 
-app = typer.Typer(help="Последовательный запуск пайплайнов всех моделей RTS.")
+app = typer.Typer(help="Последовательный запуск пайплайнов всех моделей MIX.")
 
 
 def discover_model_runners() -> list[Path]:
-    """Возвращает отсортированный список оркестраторов вида rts/<model>/run_<model>.py."""
+    """Возвращает отсортированный список оркестраторов вида mix/<model>/run_<model>.py."""
     runners: list[Path] = []
     for child in sorted(TICKER_DIR.iterdir()):
         if not child.is_dir():
@@ -75,7 +75,7 @@ def main(
         help="Продолжать прогон при падении модели (по умолчанию — останавливаться).",
     ),
 ) -> None:
-    """Прогоняет пайплайны всех моделей RTS или подмножества по --only."""
+    """Прогоняет пайплайны всех моделей MIX или подмножества по --only."""
     all_runners = discover_model_runners()
     if not all_runners:
         typer.echo(f"Не найдено модельных оркестраторов в {TICKER_DIR}.")
