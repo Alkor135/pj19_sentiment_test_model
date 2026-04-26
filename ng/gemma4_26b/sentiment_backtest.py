@@ -617,7 +617,7 @@ def build_qs_report(result: pd.DataFrame, ticker: str, model_name: str, output_h
     returns = returns.sort_index()
     report_title = f"{ticker} | {model_name} | бэктест sentiment (QuantStats)"
     qs.reports.html(returns, benchmark=None, output=str(output_html),
-                    title=report_title)
+                    title=report_title, compounded=False)
     _replace_html_title(output_html, report_title)
     _insert_qs_notional_caption(output_html, notional_capital)
 
