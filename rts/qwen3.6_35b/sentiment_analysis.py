@@ -369,7 +369,7 @@ def main(
 ) -> None:
     """Запускает полный пайплайн расчёта sentiment-оценок."""
     settings = load_settings()
-    ticker = settings.get("ticker", "RTS")
+    ticker = settings.get("ticker", "")
     setup_logging(ticker, verbose)
 
     if model is None:

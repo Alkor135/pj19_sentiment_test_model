@@ -29,7 +29,7 @@ path_db_day:    'C:/Users/Alkor/gd/data_quote_db/{ticker}_futures_day_2025_21-00
 sentiment_model: 'qwen2.5:7b'  # Локальная модель Ollama для анализа сентимента
 use_cache: true  # Использовать PKL-кэш и пропускать md-файлы с неизменённым content_hash
 sentiment_output_pkl: 'C:/Users/Alkor/VSCode/pj19_sentiment_test_model/{ticker_lc}/qwen2.5_7b/sentiment_scores.pkl'  # Файл для сохранения рассчитанных сентимент-скороров
-predict_path: 'C:/Users/Alkor/gd/predict_ai/pj19/{ticker_lc}_qwen2.5_7b'  # Путь для сохранения предсказаний sentiment-модели (sentiment_to_predict.py)
+predict_path: 'C:/Users/Alkor/gd/predict_ai/pj19/{ticker_lc}/{model_dir}'  # Путь для сохранения предсказаний sentiment-модели (sentiment_to_predict.py)
 
 # Окно дат для sentiment_group_stats.py
 stats_date_from: '2025-09-01'  # Дата начала периода для анализа групповой статистики сентимента (формат 'YYYY-MM-DD')

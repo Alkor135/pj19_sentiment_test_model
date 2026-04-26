@@ -701,7 +701,7 @@ def main(
         if isinstance(_v, str):
             settings[_k] = _v.replace("{ticker}", _t).replace("{ticker_lc}", _tl)
 
-    ticker = settings.get("ticker", "NG")
+    ticker = settings.get("ticker", "")
     model_name = str(settings.get("sentiment_model", "gemma4:e2b"))
 
     sentiment_pkl = resolve_sentiment_pkl(settings)

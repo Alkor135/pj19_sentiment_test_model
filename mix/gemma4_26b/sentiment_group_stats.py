@@ -153,7 +153,7 @@ def main(
         if isinstance(_v, str):
             settings[_k] = _v.replace("{ticker}", _t).replace("{ticker_lc}", _tl)
 
-    ticker = settings.get("ticker", "MIX")
+    ticker = settings.get("ticker", "")
 
     sentiment_pkl = resolve_sentiment_pkl(settings)
     if quantity is None:

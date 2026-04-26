@@ -1,11 +1,12 @@
 """
-Оркестратор пайплайна для модели qwen2.5:14b.
+Оркестратор пайплайна для модели gemma4:e2b.
 
-Последовательно запускает 4 скрипта в текущей папке:
+Последовательно запускает 5 скриптов в текущей папке:
 1. sentiment_analysis.py     — расчёт sentiment-оценок и сохранение PKL.
 2. sentiment_group_stats.py  — групповая статистика → group_stats/sentiment_group_stats.xlsx.
 3. rules_recommendation.py   — генерация rules.yaml на основе XLSX.
 4. sentiment_backtest.py     — бэктест по rules.yaml, отчёты в plots/ и backtest/.
+5. sentiment_to_predict.py   — прогноз направления, файл YYYY-MM-DD.txt в predict_path.
 
 Каждый шаг выполняется тем же интерпретатором, в котором запущен оркестратор.
 Аргументы CLI прозрачно прокидываются дальше — например, `--verbose` или
@@ -31,9 +32,10 @@ PIPELINE: list[str] = [
     "sentiment_group_stats.py",
     "rules_recommendation.py",
     "sentiment_backtest.py",
+    "sentiment_to_predict.py",
 ]
 
-app = typer.Typer(help="Последовательный запуск пайплайна модели qwen2.5:14b.")
+app = typer.Typer(help="Последовательный запуск пайплайна модели gemma4:e2b.")
 
 
 def run_step(script: str) -> None:
