@@ -15,6 +15,7 @@ rules_recommendation → sentiment_backtest → sentiment_to_predict).
 python run.py
 python run.py --only gemma3_12b,gemma4_e2b,gemma4_e4b,qwen2.5_14b,qwen2.5_7b,qwen3_14b --keep-going
 python run.py --tickers mix,rts,si,spyf --only gemma3_12b --keep-going
+python run.py --tickers mix,rts,si,spyf --only gemma3_12b,gemma4_e2b,gemma4_e4b,qwen2.5_14b,qwen2.5_7b,qwen3_14b --keep-going
 """
 
 from __future__ import annotations
