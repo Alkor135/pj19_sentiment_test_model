@@ -8,7 +8,7 @@ ticker_lc: 'mix'  # Важно: тикер в нижнем регистре дл
 ticker_close: 'MXM6'               # Фьючерс для закрытия позиции (trade)
 ticker_open: 'MXM6'                # Фьючерс для открытия позиции (trade)
 quantity_test: 1                   # Количество контрактов для бэктеста и аналитики
-notional_capital: 90000            # Условный капитал для QuantStats отчёта
+notional_capital: 105000           # Условный капитал для QuantStats отчёта
 
 # Выбор новостей по провайдеру
 provider: 'investing_prime_interfax'  # Новостные провайдеры: 'investing_prime_interfax' или 'prime_interfax'
