@@ -4,9 +4,13 @@
 Скрипт находит в подпапках `rts/<model>/` файлы `run_report.py`
 (модельные оркестраторы) и запускает их по очереди.
 
-Каждый модельный оркестратор сам прогоняет 4 шага своего пайплайна
+Каждый модельный оркестратор сам прогоняет 5 шагов своего пайплайна
 (sentiment_analysis → sentiment_group_stats → rules_recommendation →
-sentiment_backtest). Этот скрипт — слой выше: он только перебирает модели.
+sentiment_backtest → sentiment_to_predict). После всех моделей оркестратор
+запускает combine-пайплайн в `rts/combine/` (если эта папка есть):
+1. `combine/sentiment_combine.py`    — комбинированный бэктест по двум моделям;
+2. `combine/sentiment_to_predict.py` — комбинированный прогноз на сегодня.
+При запуске с `--only` combine пропускается (так как сужен набор моделей).
 
 Запуск:
 python rts/run_rts.py
@@ -41,10 +45,14 @@ def discover_model_runners() -> list[Path]:
     return runners
 
 
-def run_model(runner: Path, stop_on_error: bool) -> tuple[bool, float]:
-    """Запускает один модельный оркестратор и возвращает (успех, время)."""
-    model_name = runner.parent.name
-    typer.echo(f"\n########## {model_name} ##########")
+def run_model(
+    runner: Path,
+    stop_on_error: bool,
+    label: str | None = None,
+) -> tuple[bool, float]:
+    """Запускает один скрипт (модельный оркестратор или combine) и возвращает (успех, время)."""
+    name = label or runner.parent.name
+    typer.echo(f"\n########## {name} ##########")
     started = time.monotonic()
     completed = subprocess.run(
         [sys.executable, str(runner)],
@@ -53,10 +61,10 @@ def run_model(runner: Path, stop_on_error: bool) -> tuple[bool, float]:
     elapsed = time.monotonic() - started
 
     if completed.returncode == 0:
-        typer.echo(f"[OK]   {model_name} ({elapsed:.1f} с)")
+        typer.echo(f"[OK]   {name} ({elapsed:.1f} с)")
         return True, elapsed
 
-    typer.echo(f"[FAIL] {model_name} код={completed.returncode} ({elapsed:.1f} с)")
+    typer.echo(f"[FAIL] {name} код={completed.returncode} ({elapsed:.1f} с)")
     if stop_on_error:
         raise typer.Exit(code=completed.returncode)
     return False, elapsed
@@ -67,7 +75,7 @@ def main(
     only: Optional[str] = typer.Option(
         None,
         "--only",
-        help="Запустить только указанные модели через запятую (имена папок: gemma3_12b,qwen2.5_7b).",
+        help="Запустить только указанные модели через запятую (combine при этом пропускается).",
     ),
     keep_going: bool = typer.Option(
         False,
@@ -103,12 +111,30 @@ def main(
     for runner in runners:
         ok, elapsed = run_model(runner, stop_on_error=not keep_going)
         summary.append((runner.parent.name, ok, elapsed))
+
+    # Combine pipeline (после всех моделей; пропускается при --only).
+    if not only:
+        combine_dir = TICKER_DIR / "combine"
+        if combine_dir.is_dir():
+            for script_name in ("sentiment_combine.py", "sentiment_to_predict.py"):
+                script = combine_dir / script_name
+                if not script.exists():
+                    continue
+                label = f"combine/{script.stem}"
+                ok, elapsed = run_model(
+                    script,
+                    stop_on_error=not keep_going,
+                    label=label,
+                )
+                summary.append((label, ok, elapsed))
+
     total_elapsed = time.monotonic() - total_started
 
     typer.echo("\n========== ИТОГ ==========")
+    name_width = max(14, max((len(n) for n, _, _ in summary), default=14))
     for name, ok, elapsed in summary:
         marker = "OK  " if ok else "FAIL"
-        typer.echo(f"  [{marker}] {name:14s} {elapsed:8.1f} с")
+        typer.echo(f"  [{marker}] {name:{name_width}s} {elapsed:8.1f} с")
     typer.echo(f"Общее время: {total_elapsed:.1f} с")
 
     if any(not ok for _, ok, _ in summary):
