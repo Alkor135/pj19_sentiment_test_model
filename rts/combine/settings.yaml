@@ -1,0 +1,6 @@
+# settings.yaml
+# Настройки для тестирования комбинации объединенных по моделям.
+
+model_1: "gemma3_12b"
+model_2: "gemma4_e4b"
+predict_path: 'C:/Users/Alkor/gd/predict_ai/pj19/{ticker_lc}/combine'  # Путь для сохранения предсказаний
