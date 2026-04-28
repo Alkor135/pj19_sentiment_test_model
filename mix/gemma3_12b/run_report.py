@@ -1,12 +1,15 @@
 """
-Оркестратор пайплайна для модели gemma3:12b.
+Отчётный оркестратор пайплайна для модели gemma3:12b.
 
-Последовательно запускает 5 скриптов в текущей папке:
+Последовательно запускает 4 скрипта в текущей папке:
 1. sentiment_analysis.py     — расчёт sentiment-оценок и сохранение PKL.
 2. sentiment_group_stats.py  — групповая статистика → group_stats/sentiment_group_stats.xlsx.
 3. rules_recommendation.py   — генерация rules.yaml на основе XLSX.
 4. sentiment_backtest.py     — бэктест по rules.yaml, отчёты в plots/ и backtest/.
-5. sentiment_to_predict.py   — прогноз направления, файл YYYY-MM-DD.txt в predict_path.
+
+Шаг sentiment_to_predict.py намеренно НЕ входит в этот оркестратор — генерация
+прогнозов выполняется только торговым оркестратором run_trade.py на основной
+машине, чтобы исключить расхождения предсказаний между разными компьютерами.
 
 Каждый шаг выполняется тем же интерпретатором, в котором запущен оркестратор.
 Аргументы CLI прозрачно прокидываются дальше — например, `--verbose` или
@@ -32,10 +35,9 @@ PIPELINE: list[str] = [
     "sentiment_group_stats.py",
     "rules_recommendation.py",
     "sentiment_backtest.py",
-    "sentiment_to_predict.py",
 ]
 
-app = typer.Typer(help="Последовательный запуск пайплайна модели gemma3:12b.")
+app = typer.Typer(help="Отчётный пайплайн модели gemma3:12b (без генерации прогноза).")
 
 
 def run_step(script: str) -> None:

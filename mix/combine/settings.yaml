@@ -2,7 +2,11 @@
 # Настройки для тестирования комбинации объединенных по моделям.
 
 model_1: "gemma3_12b"
-model_2: "gemma4_e2b"
+
+# model_2: "gemma4_e2b"
+# model_2: "gemma4_e4b"
+model_2: "qwen3_14b"
+
 notional_capital: 90000            # Условный капитал для QuantStats отчёта
 predict_path: 'C:/Users/Alkor/gd/predict_ai/pj19/{ticker_lc}/combine'  # Путь для сохранения предсказаний
 time_start: '21:00:00'             # Начало дневной свечи; файл прогноза за сегодня не перезаписывается, если создан после этого времени

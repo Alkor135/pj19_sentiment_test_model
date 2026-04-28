@@ -1,7 +1,7 @@
 # settings.yaml
 # Настройки для тестирования комбинации объединенных по моделям.
 
-model_1: "gemma3_12b"
+model_1: "qwen3_14b"
 model_2: "qwen2.5_7b"
 notional_capital: 90000            # Условный капитал для QuantStats отчёта
 predict_path: 'C:/Users/Alkor/gd/predict_ai/pj19/{ticker_lc}/combine'  # Путь для сохранения предсказаний

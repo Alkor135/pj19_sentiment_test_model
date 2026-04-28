@@ -10,7 +10,7 @@ sentiment_backtest → sentiment_to_predict). После всех моделей
 запускает combine-пайплайн в `rts/combine/` (если эта папка есть):
 1. `combine/sentiment_combine.py`    — комбинированный бэктест по двум моделям;
 2. `combine/sentiment_to_predict.py` — комбинированный прогноз на сегодня.
-При запуске с `--only` combine пропускается (так как сужен набор моделей).
+При запуске с `--only` combine выполняется только если явно указан в списке.
 
 Запуск:
 python rts/run_rts.py
@@ -29,6 +29,8 @@ from typing import Optional
 import typer
 
 TICKER_DIR = Path(__file__).resolve().parent
+MODEL_RUNNER = "run_report.py"
+COMBINE_NAME = "combine"
 
 app = typer.Typer(help="Последовательный запуск пайплайнов всех моделей RTS.")
 
@@ -37,12 +39,35 @@ def discover_model_runners() -> list[Path]:
     """Возвращает отсортированный список оркестраторов вида rts/<model>/run_report.py."""
     runners: list[Path] = []
     for child in sorted(TICKER_DIR.iterdir()):
-        if not child.is_dir():
+        if not child.is_dir() or child.name == COMBINE_NAME:
             continue
-        candidate = child / "run_report.py"
+        candidate = child / MODEL_RUNNER
         if candidate.exists():
             runners.append(candidate)
     return runners
+
+
+def build_run_plan(
+    all_runners: list[Path],
+    only: Optional[str],
+    combine_dir: Path,
+) -> tuple[list[Path], bool]:
+    """Возвращает список модельных runner'ов и флаг запуска combine."""
+    if not only:
+        return all_runners, combine_dir.is_dir()
+
+    wanted = {s.strip() for s in only.split(",") if s.strip()}
+    model_names = {r.parent.name for r in all_runners}
+    allowed = model_names | {COMBINE_NAME}
+    unknown = wanted - allowed
+    if unknown:
+        available = sorted(allowed)
+        raise typer.BadParameter(
+            f"Неизвестные модели/шаги: {sorted(unknown)}. Доступны: {available}"
+        )
+
+    runners = [r for r in all_runners if r.parent.name in wanted]
+    return runners, COMBINE_NAME in wanted and combine_dir.is_dir()
 
 
 def run_model(
@@ -75,7 +100,7 @@ def main(
     only: Optional[str] = typer.Option(
         None,
         "--only",
-        help="Запустить только указанные модели через запятую (combine при этом пропускается).",
+        help="Запустить только указанные модели/шаги через запятую; combine можно указать явно.",
     ),
     keep_going: bool = typer.Option(
         False,
@@ -89,22 +114,18 @@ def main(
         typer.echo(f"Не найдено модельных оркестраторов в {TICKER_DIR}.")
         raise typer.Exit(code=1)
 
-    if only:
-        wanted = {s.strip() for s in only.split(",") if s.strip()}
-        runners = [r for r in all_runners if r.parent.name in wanted]
-        unknown = wanted - {r.parent.name for r in all_runners}
-        if unknown:
-            available = [r.parent.name for r in all_runners]
-            raise typer.BadParameter(
-                f"Неизвестные модели: {sorted(unknown)}. Доступны: {available}"
-            )
-    else:
-        runners = all_runners
+    combine_dir = TICKER_DIR / "combine"
+    runners, run_combine = build_run_plan(
+        all_runners=all_runners,
+        only=only,
+        combine_dir=combine_dir,
+    )
 
     typer.echo(f"Корневая папка: {TICKER_DIR}")
     typer.echo(f"Моделей к запуску: {len(runners)}")
     for r in runners:
         typer.echo(f"  - {r.parent.name}")
+    typer.echo(f"combine: {run_combine}")
 
     total_started = time.monotonic()
     summary: list[tuple[str, bool, float]] = []
@@ -112,21 +133,18 @@ def main(
         ok, elapsed = run_model(runner, stop_on_error=not keep_going)
         summary.append((runner.parent.name, ok, elapsed))
 
-    # Combine pipeline (после всех моделей; пропускается при --only).
-    if not only:
-        combine_dir = TICKER_DIR / "combine"
-        if combine_dir.is_dir():
-            for script_name in ("sentiment_combine.py", "sentiment_to_predict.py"):
-                script = combine_dir / script_name
-                if not script.exists():
-                    continue
-                label = f"combine/{script.stem}"
-                ok, elapsed = run_model(
-                    script,
-                    stop_on_error=not keep_going,
-                    label=label,
-                )
-                summary.append((label, ok, elapsed))
+    if run_combine:
+        for script_name in ("sentiment_combine.py", "sentiment_to_predict.py"):
+            script = combine_dir / script_name
+            if not script.exists():
+                continue
+            label = f"combine/{script.stem}"
+            ok, elapsed = run_model(
+                script,
+                stop_on_error=not keep_going,
+                label=label,
+            )
+            summary.append((label, ok, elapsed))
 
     total_elapsed = time.monotonic() - total_started
 
