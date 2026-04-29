@@ -1,7 +1,7 @@
 """
 Бэктест комбинированной торговли по предсказаниям двух sentiment-моделей.
 
-Скрипт читает плоский `settings.yaml` рядом со скриптом (`model_1`, `model_2`,
+Скрипт читает настройки из единого `ng/settings.yaml` (`model_1`, `model_2`,
 `notional_capital`), нормализует имена моделей в имена папок (замена `:` на `_`),
 грузит для каждой модели XLSX из
 `<ticker>/<model_dir>/backtest/sentiment_backtest_results.xlsx`.
@@ -20,7 +20,7 @@
 Скрипт самодостаточен: тикер берётся из имени родительской папки
 (`Path(__file__).resolve().parents[1]`), пути к моделям строятся
 относительно этой же папки. Скопированный в другой тикер скрипт работает
-без изменений — правится только `settings.yaml`.
+без изменений — правится только секция в `<ticker>/settings.yaml`.
 """
 
 from __future__ import annotations
@@ -28,6 +28,7 @@ from __future__ import annotations
 import re
 from html import escape
 from pathlib import Path
+import sys
 
 import numpy as np
 import pandas as pd
@@ -39,6 +40,8 @@ import yaml
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 TICKER_DIR = SCRIPT_DIR.parent
+sys.path.insert(0, str(TICKER_DIR))
+from config_loader import load_settings_for, load_model_settings as load_model_settings_from_config
 
 app = typer.Typer(help="Бэктест комбинированной торговли по двум sentiment-моделям.")
 
@@ -49,25 +52,13 @@ def model_folder_name(model: str) -> str:
 
 
 def load_combine_settings() -> dict:
-    """Читает settings.yaml рядом со скриптом."""
-    path = SCRIPT_DIR / "settings.yaml"
-    if not path.exists():
-        raise typer.BadParameter(f"settings.yaml не найден: {path}")
-    return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    """Загружает настройки combine из единого {ticker}/settings.yaml."""
+    return load_settings_for(__file__, "combine")
 
 
 def load_model_settings(model_dir: Path) -> dict:
-    """Читает settings.yaml модели и применяет подстановку {ticker}/{ticker_lc}."""
-    path = model_dir / "settings.yaml"
-    if not path.exists():
-        raise typer.BadParameter(f"settings.yaml модели не найден: {path}")
-    settings = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    t = settings.get("ticker", "")
-    tl = settings.get("ticker_lc", t.lower())
-    for k, v in list(settings.items()):
-        if isinstance(v, str):
-            settings[k] = v.replace("{ticker}", t).replace("{ticker_lc}", tl)
-    return settings
+    """Загружает настройки модели из единого {ticker}/settings.yaml."""
+    return load_model_settings_from_config(TICKER_DIR, model_dir.name)
 
 
 def load_strategy_xlsx(path: Path) -> pd.DataFrame:

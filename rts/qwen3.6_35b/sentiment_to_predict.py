@@ -24,11 +24,14 @@ import logging
 import pickle
 from datetime import date, datetime
 from pathlib import Path
+import sys
 
 import pandas as pd
 import yaml
 
 MODEL_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(MODEL_DIR.parent))
+from config_loader import load_settings_for
 LOG_DIR = MODEL_DIR / "log"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -72,20 +75,9 @@ def load_yaml(path: Path) -> dict:
         return yaml.safe_load(f) or {}
 
 
-def load_settings(path: Path = MODEL_DIR / "settings.yaml") -> dict:
-    """Загружает плоский settings.yaml и подставляет параметры папки."""
-    settings = load_yaml(path)
-    ticker = settings.get("ticker", "")
-    ticker_lc = settings.get("ticker_lc", str(ticker).lower())
-    model_dir = MODEL_DIR.name
-    for key, value in list(settings.items()):
-        if isinstance(value, str):
-            settings[key] = (
-                value.replace("{ticker}", ticker)
-                .replace("{ticker_lc}", ticker_lc)
-                .replace("{model_dir}", model_dir)
-            )
-    return settings
+def load_settings(path: Path | None = None) -> dict:
+    """Загружает настройки модели из единого {ticker}/settings.yaml."""
+    return load_settings_for(__file__, "model")
 
 
 def resolve_sentiment_pkl(settings: dict, base_dir: Path = MODEL_DIR) -> Path:

@@ -1,7 +1,8 @@
 """
 Корневой торговый оркестратор тикеров.
 
-Скрипт запускает тикерные торговые оркестраторы вида
+Сначала скрипт синхронизирует RSS-БД и логи через `beget/sync_files.py`.
+После успешной синхронизации запускает тикерные торговые оркестраторы вида
 `<ticker>/run_<ticker>_trade.py`. Аргументы для каждого тикера задаются
 явной структурой `TICKER_TRADE_RUNS` ниже.
 
@@ -91,6 +92,7 @@ TICKER_TRADE_RUNS: dict[str, TickerRunConfig] = {
 
 
 ROOT_DIR = Path(__file__).resolve().parent
+BEGET_SYNC = ROOT_DIR / "beget" / "sync_files.py"
 
 app = typer.Typer(help="Последовательный запуск торговых пайплайнов тикеров.")
 
@@ -149,6 +151,27 @@ def run_ticker(ticker: str, config: TickerRunConfig) -> tuple[bool, float]:
     return False, elapsed
 
 
+def run_beget_sync() -> tuple[bool, float]:
+    """Запускает обязательную синхронизацию RSS-БД перед торговым пайплайном."""
+    if not BEGET_SYNC.exists():
+        raise typer.BadParameter(f"Не найден скрипт синхронизации: {BEGET_SYNC}")
+
+    typer.echo("\n========== BEGET SYNC ==========")
+    started = time.monotonic()
+    completed = subprocess.run(
+        [sys.executable, str(BEGET_SYNC)],
+        cwd=str(BEGET_SYNC.parent),
+    )
+    elapsed = time.monotonic() - started
+
+    if completed.returncode == 0:
+        typer.echo(f"[OK]   beget/sync_files.py ({elapsed:.1f} с)")
+        return True, elapsed
+
+    typer.echo(f"[FAIL] beget/sync_files.py код={completed.returncode} ({elapsed:.1f} с)")
+    raise typer.Exit(code=completed.returncode)
+
+
 @app.command()
 def main(
     tickers: Optional[str] = typer.Option(
@@ -170,6 +193,9 @@ def main(
 
     total_started = time.monotonic()
     summary: list[tuple[str, bool, float]] = []
+    ok, elapsed = run_beget_sync()
+    summary.append(("beget", ok, elapsed))
+
     for ticker, config in runs.items():
         ok, elapsed = run_ticker(ticker, config)
         summary.append((ticker, ok, elapsed))

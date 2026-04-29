@@ -1,7 +1,12 @@
 """
 Торговый оркестратор всех модельных пайплайнов для тикера RTS.
 
-Скрипт находит в подпапках `rts/<model>/` файлы `run_trade.py`
+Сначала скрипт запускает обязательные общие шаги подготовки данных:
+1. `shared/download_minutes_to_db.py`
+2. `shared/convert_minutes_to_days.py`
+3. `shared/create_markdown_files.py`
+
+После успешной подготовки скрипт находит в подпапках `rts/<model>/` файлы `run_trade.py`
 (модельные торговые оркестраторы) и запускает их по очереди.
 
 Каждый модельный run_trade.py прогоняет 5 шагов своего пайплайна
@@ -20,6 +25,7 @@ sentiment_backtest → sentiment_to_predict). После всех моделей
 python rts/run_rts_trade.py
 python rts/run_rts_trade.py --only gemma3_12b,gemma4_e2b --keep-going
 python rts/run_rts_trade.py --keep-going
+python rts/run_rts_trade.py --only gemma3_12b,gemma4_e2b,gemma4_e4b,qwen2.5_14b,qwen2.5_7b,qwen3_14b,combine
 """
 
 from __future__ import annotations
@@ -38,6 +44,11 @@ TICKER = TICKER_DIR.name
 MODEL_RUNNER = "run_trade.py"
 COMBINE_RUNNER = "run_trade.py"
 COMBINE_NAME = "combine"
+SHARED_STEPS = [
+    Path("shared") / "download_minutes_to_db.py",
+    Path("shared") / "convert_minutes_to_days.py",
+    Path("shared") / "create_markdown_files.py",
+]
 
 app = typer.Typer(help=f"Торговый пайплайн всех моделей тикера {TICKER}.")
 
@@ -102,6 +113,21 @@ def run_script(
     return False, elapsed
 
 
+def run_shared_steps() -> list[tuple[str, bool, float]]:
+    """Запускает обязательную подготовку данных shared перед trade-пайплайном."""
+    summary: list[tuple[str, bool, float]] = []
+    typer.echo("\n========== SHARED PREP ==========")
+    for rel_path in SHARED_STEPS:
+        runner = TICKER_DIR / rel_path
+        if not runner.exists():
+            typer.echo(f"[FAIL] shared/{runner.name}: скрипт не найден: {runner}")
+            raise typer.Exit(code=1)
+        label = rel_path.as_posix()
+        ok, elapsed = run_script(runner, stop_on_error=True, label=label)
+        summary.append((label, ok, elapsed))
+    return summary
+
+
 @app.command()
 def main(
     only: Optional[str] = typer.Option(
@@ -136,7 +162,8 @@ def main(
     typer.echo(f"combine: {run_combine}")
 
     total_started = time.monotonic()
-    summary: list[tuple[str, bool, float]] = []
+    summary: list[tuple[str, bool, float]] = run_shared_steps()
+
     for runner in runners:
         ok, elapsed = run_script(runner, stop_on_error=not keep_going)
         summary.append((runner.parent.name, ok, elapsed))

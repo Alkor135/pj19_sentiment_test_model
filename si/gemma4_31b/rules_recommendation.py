@@ -1,7 +1,7 @@
 """
 Строит рекомендованный rules.yaml из sentiment_group_stats.xlsx.
 
-Скрипт читает плоский `settings.yaml` рядом со скриптом, загружает
+Скрипт читает настройки из единого `si/settings.yaml`, загружает
 `group_stats/sentiment_group_stats.xlsx` и для каждого значения sentiment
 от -10 до +10 определяет рекомендованное действие:
 - `follow`, если `total_pnl > 0`;
@@ -18,26 +18,23 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sys
 
 import pandas as pd
 import typer
 import yaml
 
 TICKER_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(TICKER_DIR.parent))
+from config_loader import load_settings_for
 SENTIMENT_RANGE = range(-10, 11)
 
 app = typer.Typer(help="Строит рекомендованный YAML с правилами по group_stats XLSX.")
 
 
 def load_settings() -> dict:
-    """Читает плоский settings.yaml и нормализует подстановки тикера."""
-    settings = yaml.safe_load((TICKER_DIR / "settings.yaml").read_text(encoding="utf-8")) or {}
-    ticker = settings.get("ticker", "")
-    ticker_lc = settings.get("ticker_lc", ticker.lower())
-    for key, value in list(settings.items()):
-        if isinstance(value, str):
-            settings[key] = value.replace("{ticker}", ticker).replace("{ticker_lc}", ticker_lc)
-    return settings
+    """Загружает настройки модели из единого {ticker}/settings.yaml."""
+    return load_settings_for(__file__, "model")
 
 
 def resolve_group_stats_input_xlsx(settings: dict, output_dir: Path) -> Path:

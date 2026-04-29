@@ -1,6 +1,6 @@
 """Собирает sentiment-оценки новостей из markdown-файлов через локальную модель Ollama.
 
-Скрипт читает плоский `settings.yaml` рядом со скриптом, строит жесткий
+Скрипт читает настройки из единого `ng/settings.yaml`, строит жесткий
 промпт для модели, вызывает локальный `/api/generate`, строго парсит ответ
 как одно число и сохраняет результаты в PKL.
 
@@ -21,6 +21,7 @@ import sqlite3
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
+import sys
 from typing import Optional
 
 import numpy as np
@@ -32,6 +33,8 @@ import yaml
 from tqdm import tqdm
 
 TICKER_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(TICKER_DIR.parent))
+from config_loader import load_settings_for
 
 app = typer.Typer(help="Собирает sentiment-оценки новостей через локальную модель Ollama.")
 
@@ -83,15 +86,8 @@ def setup_logging(ticker_label: str, verbose: bool = False) -> None:
 
 
 def load_settings() -> dict:
-    """Загружает и нормализует настройки из плоского settings.yaml."""
-    settings_path = Path(__file__).resolve().parent / "settings.yaml"
-    settings = yaml.safe_load(settings_path.read_text(encoding="utf-8")) or {}
-    ticker = settings.get("ticker", "")
-    ticker_lc = settings.get("ticker_lc", ticker.lower())
-    for key, value in list(settings.items()):
-        if isinstance(value, str):
-            settings[key] = value.replace("{ticker}", ticker).replace("{ticker_lc}", ticker_lc)
-    return settings
+    """Загружает настройки модели из единого {ticker}/settings.yaml."""
+    return load_settings_for(__file__, "model")
 
 
 def find_md_files(md_dir: Path) -> list[Path]:

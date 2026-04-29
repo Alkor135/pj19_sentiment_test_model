@@ -1,0 +1,35 @@
+# trade/settings.yaml
+
+# trade_path: 'C:/QUIK_VTB_2022_ИИС/algotrade'  # Путь к папке QUIK для TRI-файлов
+# trade_account: 'SPBFUT16qg3'  # Торговый счёт на срочном рынке
+
+# trade_path: 'C:/QUIK_VTB_2025_ЕБС/algotrade'  # Путь к папке QUIK для TRI-файлов
+# trade_account: 'SPBFUT192yc'  # Торговый счёт на срочном рынке
+
+accounts:
+  iis:                                          # QUIK ИИС
+    trade_path: 'C:/QUIK_VTB_2022_ИИС/algotrade'
+    trade_account: 'SPBFUT16qg3'
+    rts:
+      target_quantity: 0
+    mix:
+      target_quantity: 0
+    ng:
+      target_quantity: 0
+    si:
+      target_quantity: 0
+    spyf:
+      target_quantity: 0
+  ebs:                                          # QUIK ЕБС
+    trade_path: 'C:/QUIK_VTB_2025_ЕБС/algotrade'
+    trade_account: 'SPBFUT192yc'
+    rts:
+      target_quantity: 0
+    mix:
+      target_quantity: 4
+    ng:
+      target_quantity: 0
+    si:
+      target_quantity: 0
+    spyf:
+      target_quantity: 0

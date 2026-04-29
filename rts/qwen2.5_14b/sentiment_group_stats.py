@@ -1,7 +1,7 @@
 """
 Строит сырую групповую статистику по значениям sentiment.
 
-Скрипт читает плоский `settings.yaml` рядом со скриптом, загружает
+Скрипт читает настройки из единого `rts/settings.yaml`, загружает
 `sentiment_scores.pkl`, берёт из него `sentiment` и `next_body` и моделирует
 базовую follow-стратегию:
 - `LONG`, если `sentiment >= 0`;
@@ -20,6 +20,7 @@
 import pickle
 from datetime import date
 from pathlib import Path
+import sys
 from typing import Optional
 
 import pandas as pd
@@ -27,6 +28,8 @@ import typer
 import yaml
 
 TICKER_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(TICKER_DIR.parent))
+from config_loader import load_settings_for
 
 
 def resolve_sentiment_pkl(settings: dict) -> Path:
@@ -145,13 +148,8 @@ def main(
     ),
 ) -> None:
     """Запускает полный расчет групповой статистики и сохраняет итог в XLSX."""
-    # --- Загрузка настроек из плоского settings.yaml рядом со скриптом ---
-    settings = yaml.safe_load((TICKER_DIR / "settings.yaml").read_text(encoding="utf-8")) or {}
-    _t = settings.get("ticker", "")
-    _tl = settings.get("ticker_lc", _t.lower())
-    for _k, _v in list(settings.items()):
-        if isinstance(_v, str):
-            settings[_k] = _v.replace("{ticker}", _t).replace("{ticker_lc}", _tl)
+    # --- Загрузка настроек модели из единого {ticker}/settings.yaml ---
+    settings = load_settings_for(__file__, "model")
 
     ticker = settings.get("ticker", "")
 

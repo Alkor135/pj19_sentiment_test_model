@@ -29,11 +29,14 @@ import logging
 import re
 from datetime import date, datetime
 from pathlib import Path
+import sys
 
 import yaml
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 TICKER_DIR = SCRIPT_DIR.parent
+sys.path.insert(0, str(TICKER_DIR))
+from config_loader import load_settings_for
 LOG_DIR = SCRIPT_DIR / "log"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -87,14 +90,9 @@ def should_rewrite_existing_predict(out_file: Path, today: date, time_start: str
     return file_mtime < cutoff
 
 
-def load_settings(path: Path = SCRIPT_DIR / "settings.yaml") -> dict:
-    """Читает settings.yaml комбинации с подстановкой {ticker_lc}."""
-    settings = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    ticker_lc = settings.get("ticker_lc", TICKER_DIR.name.lower())
-    for key, value in list(settings.items()):
-        if isinstance(value, str):
-            settings[key] = value.replace("{ticker_lc}", ticker_lc)
-    return settings
+def load_settings(path: Path | None = None) -> dict:
+    """Загружает настройки combine из единого {ticker}/settings.yaml."""
+    return load_settings_for(__file__, "combine")
 
 
 def parse_predict_file(content: str) -> tuple[str, str | None]:

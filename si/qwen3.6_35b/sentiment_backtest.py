@@ -1,7 +1,7 @@
 """
 Бэктест sentiment-стратегии на основе `sentiment_scores.pkl`.
 
-Скрипт читает плоский `settings.yaml` рядом со скриптом, загружает
+Скрипт читает настройки из единого `si/settings.yaml`, загружает
 `sentiment` и `next_body` из PKL, применяет правила из `rules.yaml`
 и строит сделки для follow / invert / skip логики.
 
@@ -21,6 +21,7 @@ import re
 from datetime import date
 from html import escape
 from pathlib import Path
+import sys
 from typing import Optional
 
 import numpy as np
@@ -32,6 +33,8 @@ import typer
 import yaml
 
 TICKER_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(TICKER_DIR.parent))
+from config_loader import load_settings_for
 
 
 def _parse_date(value) -> Optional[date]:
@@ -693,13 +696,8 @@ def main(
     ),
 ) -> None:
     """Запускает полный бэктест sentiment-стратегии и сохраняет отчёты."""
-    # --- Загрузка настроек из плоского settings.yaml рядом со скриптом ---
-    settings = yaml.safe_load((TICKER_DIR / "settings.yaml").read_text(encoding="utf-8")) or {}
-    _t = settings.get("ticker", "")
-    _tl = settings.get("ticker_lc", _t.lower())
-    for _k, _v in list(settings.items()):
-        if isinstance(_v, str):
-            settings[_k] = _v.replace("{ticker}", _t).replace("{ticker_lc}", _tl)
+    # --- Загрузка настроек модели из единого {ticker}/settings.yaml ---
+    settings = load_settings_for(__file__, "model")
 
     ticker = settings.get("ticker", "")
     model_name = str(settings.get("sentiment_model", "qwen3.6:35b"))
