@@ -1,14 +1,14 @@
 # trade/settings.yaml
 
-# trade_path: 'C:/QUIK_VTB_2022_ИИС/algotrade'  # Путь к папке QUIK для TRI-файлов
+done_marker_reset_before: '21:00:00'
+
 # trade_account: 'SPBFUT16qg3'  # Торговый счёт на срочном рынке
 
-# trade_path: 'C:/QUIK_VTB_2025_ЕБС/algotrade'  # Путь к папке QUIK для TRI-файлов
 # trade_account: 'SPBFUT192yc'  # Торговый счёт на срочном рынке
 
 accounts:
   iis:                                          # QUIK ИИС
-    trade_path: 'C:/QUIK_VTB_2022_ИИС/algotrade'
+    trade_filepath: 'C:/QUIK_VTB_2022_ИИС/algotrade/input.tri'
     trade_account: 'SPBFUT16qg3'
     rts:
       target_quantity: 0
@@ -21,12 +21,15 @@ accounts:
     spyf:
       target_quantity: 0
   ebs:                                          # QUIK ЕБС
-    trade_path: 'C:/QUIK_VTB_2025_ЕБС/algotrade'
+    # trade_filepath: 'C:/QUIK_VTB_2025_ЕБС/algotrade/input.tri'
+    trade_filepath: 'C:/QUIK_VTB_2025_ЕБС/algotrade/test.tri'
     trade_account: 'SPBFUT192yc'
     rts:
-      target_quantity: 0
+      target_quantity: 2
+      predict_dir: 'C:/Users/Alkor/gd/predict_ai/pj19/rts/combine'
     mix:
-      target_quantity: 4
+      target_quantity: 2
+      predict_dir: 'C:/Users/Alkor/gd/predict_ai/pj19/mix/combine'
     ng:
       target_quantity: 0
     si:

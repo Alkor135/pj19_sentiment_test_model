@@ -1,5 +1,5 @@
 """
-Исполнение сделок по фьючерсу RTS в QUIK через .tri-файлы.
+Исполнение сделок по фьючерсу MIX в QUIK через .tri-файлы.
 
 Target-state модель:
   1. Читает комбинированный прогноз текущего дня.
@@ -13,7 +13,7 @@ Target-state модель:
 """
 
 from pathlib import Path
-from datetime import datetime, date
+from datetime import datetime, date, time
 import re
 import logging
 import sys
@@ -24,9 +24,10 @@ _TRADE_DIR = Path(__file__).resolve().parent
 if str(_TRADE_DIR) not in sys.path:
     sys.path.insert(0, str(_TRADE_DIR))
 from read_positions import get_position, get_exported_at, is_export_fresh, has_yaml_override
+from rebalance import build_rebalance_orders
 
-# --- Конфигурация из rts/settings.yaml (common + combine) ---
-ticker_lc = 'rts'
+# --- Конфигурация из mix/settings.yaml (common + combine) ---
+ticker_lc = 'mix'
 TICKER_DIR = Path(__file__).resolve().parents[1] / ticker_lc
 if str(TICKER_DIR) not in sys.path:
     sys.path.insert(0, str(TICKER_DIR))
@@ -44,13 +45,13 @@ ticker_open = cfg['ticker_open']
 account = trade_cfg['accounts']['ebs']
 trade_account = account['trade_account']
 target_quantity = int(account[ticker_lc].get('target_quantity', 0))
+done_marker_reset_before = trade_cfg['done_marker_reset_before']
 
 # Пути к файлам
-predict_path = Path(cfg['predict_path'])
+predict_dir = Path(account[ticker_lc]['predict_dir'])
 log_path = Path(__file__).parent / "log"
-trade_path = Path(account['trade_path'])
-trade_filepath = trade_path / "input.tri"
-# trade_filepath = trade_path / "test.tri"  # Для тестирования без реального QUIK (пишет в test.tri вместо input.tri)
+trade_filepath = Path(account['trade_filepath'])
+trade_path = trade_filepath.parent
 
 # Создание необходимых директорий
 trade_path.mkdir(parents=True, exist_ok=True)
@@ -61,7 +62,7 @@ state_path.mkdir(parents=True, exist_ok=True)
 # Имя файла прогноза на текущую дату
 today = date.today()
 current_filename = today.strftime("%Y-%m-%d") + ".txt"
-current_filepath = predict_path / current_filename
+current_filepath = predict_dir / current_filename
 
 # --- Настройка логгирования ---
 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -90,6 +91,16 @@ def cleanup_old_logs(log_dir: Path, prefix: str, max_files: int = 3):
                 logger.warning(f"Не удалось удалить {old_file}: {e}")
 
 cleanup_old_logs(log_path, prefix=f"trade_{ticker_lc}_combo")
+
+
+def parse_hhmmss(value: str) -> time:
+    return datetime.strptime(value, "%H:%M:%S").time()
+
+
+def should_delete_existing_done_marker(marker: Path, today: date, reset_before: str) -> bool:
+    """Удаляем только сегодняшний done-маркер, созданный сегодня до reset_before."""
+    marker_mtime = datetime.fromtimestamp(marker.stat().st_mtime)
+    return marker_mtime.date() == today and marker_mtime.time() < parse_hhmmss(reset_before)
 
 # --- Вспомогательные функции ---
 def get_direction(filepath):
@@ -153,8 +164,15 @@ def create_trade_block(tr_id, ticker, action, quantity):
 # Защита от повторной записи: один тикер + одна дата = один маркер
 done_marker = state_path / f"{ticker_lc}_{trade_account}_{today.strftime('%Y-%m-%d')}.done"
 if done_marker.exists():
-    logger.info(f"Маркер {done_marker.name} уже существует — транзакция за сегодня уже записана. Пропуск.\n")
-    sys.exit(0)
+    if should_delete_existing_done_marker(done_marker, today, done_marker_reset_before):
+        done_marker.unlink()
+        logger.info(
+            f"Маркер {done_marker.name} создан сегодня до {done_marker_reset_before} "
+            f"(тестовый) — удаляем перед торговой проверкой."
+        )
+    else:
+        logger.info(f"Маркер {done_marker.name} уже существует — транзакция за сегодня уже записана. Пропуск.\n")
+        sys.exit(0)
 
 # Проверка наличия файла прогноза на сегодня
 if not current_filepath.exists() or current_filepath.stat().st_size == 0:
@@ -219,38 +237,11 @@ if delta == 0:
 trans_id = get_next_trans_id(trade_filepath)
 trade_content = ""
 
-# --- Логика: сначала закрываем, потом открываем ---
-if delta > 0:
-    # Нужно либо увеличить лонг, либо закрыть шорт
-    if current_position < 0:
-        # Сейчас в шорте — закрываем шорт противоположным ордером
-        close_qty = abs(current_position)
-        trade_content += create_trade_block(trans_id, ticker_open, 'Покупка', str(close_qty))
-        trans_id += 1
-        logger.info(f"  Закрытие шорта: Покупка {close_qty} контрактов {ticker_open}")
-
-    # Если цель > 0, открываем/добавляем лонг (только если не skip)
-    if target_position > 0:
-        open_qty = target_position - max(0, current_position)
-        if open_qty > 0:
-            trade_content += create_trade_block(trans_id, ticker_open, 'Покупка', str(open_qty))
-            logger.info(f"  Открытие лонга: Покупка {open_qty} контрактов {ticker_open}")
-
-elif delta < 0:
-    # Нужно либо увеличить шорт, либо закрыть лонг
-    if current_position > 0:
-        # Сейчас в лонге — закрываем лонг противоположным ордером
-        close_qty = current_position
-        trade_content += create_trade_block(trans_id, ticker_open, 'Продажа', str(close_qty))
-        trans_id += 1
-        logger.info(f"  Закрытие лонга: Продажа {close_qty} контрактов {ticker_open}")
-
-    # Если цель < 0, открываем/добавляем шорт (только если не skip)
-    if target_position < 0:
-        open_qty = abs(target_position) - max(0, -current_position)
-        if open_qty > 0:
-            trade_content += create_trade_block(trans_id, ticker_open, 'Продажа', str(open_qty))
-            logger.info(f"  Открытие шорта: Продажа {open_qty} контрактов {ticker_open}")
+# --- Логика: приводим текущую позицию к целевой ---
+for action, quantity, reason in build_rebalance_orders(current_position, target_position):
+    trade_content += create_trade_block(trans_id, ticker_open, action, str(quantity))
+    logger.info(f"  {reason}: {action} {quantity} контрактов {ticker_open}")
+    trans_id += 1
 
 # --- Ролловер: если ticker_close ≠ ticker_open, закрываем позицию в старом контракте ---
 if ticker_close != ticker_open:

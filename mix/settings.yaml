@@ -56,6 +56,6 @@ models:
 combine:
   model_1: 'gemma3_12b'
   model_2: 'gemma4_e4b'
-  notional_capital: 90000
+  notional_capital: 105000
   predict_path: 'C:/Users/Alkor/gd/predict_ai/pj19/{ticker_lc}/combine'
   time_start: '21:00:00'

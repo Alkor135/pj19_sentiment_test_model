@@ -58,5 +58,6 @@ models:
 
 combine:
   model_1: 'qwen3_14b'
-  model_2: 'gemma4_e2b'
+  # model_2: 'gemma4_e2b'
+  model_2: 'qwen2.5_7b'
   predict_path: 'C:/Users/Alkor/gd/predict_ai/pj19/{ticker_lc}/combine'
