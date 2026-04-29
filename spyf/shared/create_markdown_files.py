@@ -13,7 +13,7 @@ import sys
 import sqlite3
 import logging
 from logging.handlers import TimedRotatingFileHandler
-from datetime import datetime
+from datetime import datetime, time
 import yaml
 
 # --- Загрузка настроек из единого {ticker}/settings.yaml ---
@@ -158,6 +158,15 @@ def build_trade_intervals(
 
     return tuple(intervals)
 
+def should_delete_latest_markdown_file(
+    file_mtime: datetime,
+    now: datetime | None = None,
+) -> bool:
+    """Удаляем крайний md только если он старее сегодняшних 21:00."""
+    now = now or datetime.now()
+    today_21 = datetime.combine(now.date(), time(21, 0, 0))
+    return file_mtime < today_21
+
 def create_markdown_files_from_intervals(
     df_news: pd.DataFrame,
     intervals: tuple,
@@ -191,8 +200,15 @@ def create_markdown_files_from_intervals(
         if dated_files:
             last_date, last_path = max(dated_files, key=lambda x: x[0])
             try:
-                last_path.unlink()
-                logging.info(f"Удалён последний markdown-файл: {last_path}")
+                last_mtime = datetime.fromtimestamp(last_path.stat().st_mtime)
+                if should_delete_latest_markdown_file(last_mtime):
+                    last_path.unlink()
+                    logging.info(f"Удалён последний markdown-файл: {last_path}")
+                else:
+                    logging.info(
+                        f"Последний markdown-файл создан после 21:00 текущего дня, "
+                        f"оставляем без изменений: {last_path} (mtime={last_mtime})"
+                    )
             except Exception as e:
                 logging.error(f"Ошибка удаления markdown-файла {last_path}: {e}")
 

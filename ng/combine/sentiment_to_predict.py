@@ -83,11 +83,22 @@ def model_folder_name(model: str) -> str:
     return model.replace(":", "_")
 
 
-def should_rewrite_existing_predict(out_file: Path, today: date, time_start: str) -> bool:
-    """Возвращает True, если файл прогноза создан до time_start сегодня — значит, его можно перезаписать."""
+def predict_file_date(path: Path) -> date | None:
+    """Возвращает дату из имени YYYY-MM-DD.txt или None для чужого формата."""
+    try:
+        return datetime.strptime(path.stem, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def should_delete_existing_predict_file(out_file: Path, today: date, time_start: str) -> bool:
+    """Удаляем только сегодняшний файл прогноза, созданный сегодня до time_start."""
+    if predict_file_date(out_file) != today:
+        return False
+
     cutoff = datetime.combine(today, datetime.strptime(time_start, "%H:%M:%S").time())
     file_mtime = datetime.fromtimestamp(out_file.stat().st_mtime)
-    return file_mtime < cutoff
+    return file_mtime.date() == today and file_mtime < cutoff
 
 
 def load_settings(path: Path | None = None) -> dict:
@@ -203,9 +214,10 @@ def main() -> int:
                     "В settings.yaml не задан time_start — файл %s будет перезаписан без проверки.",
                     out_file,
                 )
-            elif should_rewrite_existing_predict(out_file, today, time_start):
+            elif should_delete_existing_predict_file(out_file, today, time_start):
+                out_file.unlink()
                 logger.info(
-                    "Файл %s создан до %s (тестовый) — перезаписываем.",
+                    "Файл %s создан сегодня до %s (тестовый) — удаляем перед созданием.",
                     out_file,
                     time_start,
                 )

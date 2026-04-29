@@ -151,11 +151,22 @@ def get_today_sentiment(pkl_path: Path, today: date) -> float | None:
     return float(today_rows["sentiment"].iloc[0])
 
 
-def should_rewrite_existing_predict(out_file: Path, today: date, time_start: str) -> bool:
-    """Проверяет, нужно ли перезаписать существующий файл прогноза."""
+def predict_file_date(path: Path) -> date | None:
+    """Возвращает дату из имени YYYY-MM-DD.txt или None для чужого формата."""
+    try:
+        return datetime.strptime(path.stem, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def should_delete_existing_predict_file(out_file: Path, today: date, time_start: str) -> bool:
+    """Удаляем только сегодняшний файл прогноза, созданный сегодня до time_start."""
+    if predict_file_date(out_file) != today:
+        return False
+
     cutoff = datetime.combine(today, datetime.strptime(time_start, "%H:%M:%S").time())
     file_mtime = datetime.fromtimestamp(out_file.stat().st_mtime)
-    return file_mtime < cutoff
+    return file_mtime.date() == today and file_mtime < cutoff
 
 
 def write_predict(
@@ -201,9 +212,10 @@ def main() -> int:
         out_file = predict_path / f"{date_str}.txt"
 
         if out_file.exists():
-            if should_rewrite_existing_predict(out_file, today, settings["time_start"]):
+            if should_delete_existing_predict_file(out_file, today, settings["time_start"]):
+                out_file.unlink()
                 logger.info(
-                    "Файл %s создан до %s (тестовый) - перезаписываем.",
+                    "Файл %s создан сегодня до %s (тестовый) - удаляем перед созданием.",
                     out_file,
                     settings["time_start"],
                 )
