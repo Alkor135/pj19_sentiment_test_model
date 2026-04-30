@@ -2,14 +2,15 @@
 Исполнение сделок по фьючерсу MIX в QUIK через .tri-файлы.
 
 Target-state модель:
-  1. Читает комбинированный прогноз текущего дня.
+  1. Читает прогноз текущего дня из predict_dir.
   2. По сигналу вычисляет целевую позицию (up → +qty, down → -qty, skip → 0).
   3. Из read_positions.py получает текущую позицию (тикер + количество).
   4. Дельта = цель − текущая → пишет закрытие (противоположный ордер) + открытие (нужный ордер).
   5. При ролловере (ticker_close ≠ ticker_open): закрывает старый, открывает новый.
 
 Поддержка ручного override позиций через trade/state/positions.yaml.
-Логирование с ротацией (3 файла). Защита от двойной записи через маркер state/{ticker}_{date}.done.
+Логирование с ротацией (3 файла). Защита от двойной записи через маркер
+state/{ticker}_{trade_account}_{date}.done.
 """
 
 from pathlib import Path
@@ -26,14 +27,14 @@ if str(_TRADE_DIR) not in sys.path:
 from read_positions import get_position, get_exported_at, is_export_fresh, has_yaml_override
 from rebalance import build_rebalance_orders
 
-# --- Конфигурация из mix/settings.yaml (common + combine) ---
+# --- Конфигурация из mix/settings.yaml (common для контрактов) ---
 ticker_lc = 'mix'
 TICKER_DIR = Path(__file__).resolve().parents[1] / ticker_lc
-if str(TICKER_DIR) not in sys.path:
-    sys.path.insert(0, str(TICKER_DIR))
-from config_loader import load_settings_for
 
-cfg = load_settings_for(TICKER_DIR / "combine" / "sentiment_combine.py", "combine")
+settings_path = TICKER_DIR / "settings.yaml"
+with settings_path.open(encoding="utf-8") as f:
+    ticker_cfg = yaml.safe_load(f) or {}
+cfg = ticker_cfg.get("common") or {}
 
 trade_settings_path = Path(__file__).parent / 'settings.yaml'
 with open(trade_settings_path, encoding='utf-8') as f:
@@ -66,7 +67,7 @@ current_filepath = predict_dir / current_filename
 
 # --- Настройка логгирования ---
 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-log_file = log_path / f'trade_{ticker_lc}_combo_{timestamp}.txt'
+log_file = log_path / f'trade_{ticker_lc}_ebs_{timestamp}.txt'
 
 logging.basicConfig(
     level=logging.INFO,
@@ -90,10 +91,11 @@ def cleanup_old_logs(log_dir: Path, prefix: str, max_files: int = 3):
             except Exception as e:
                 logger.warning(f"Не удалось удалить {old_file}: {e}")
 
-cleanup_old_logs(log_path, prefix=f"trade_{ticker_lc}_combo")
+cleanup_old_logs(log_path, prefix=f"trade_{ticker_lc}_ebs")
 
 
 def parse_hhmmss(value: str) -> time:
+    """Парсит строку HH:MM:SS из настроек в объект time."""
     return datetime.strptime(value, "%H:%M:%S").time()
 
 
@@ -105,7 +107,7 @@ def should_delete_existing_done_marker(marker: Path, today: date, reset_before: 
 # --- Вспомогательные функции ---
 def get_direction(filepath):
     """
-    Извлекает предсказание (up/down/skip) из указанного файла.
+    Извлекает строку `Предсказанное направление: up/down/skip` из файла прогноза.
     Проверяет несколько кодировок для корректного чтения.
     """
     encodings = ['utf-8', 'cp1251']

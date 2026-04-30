@@ -21,8 +21,8 @@ accounts:
     spyf:
       target_quantity: 0
   ebs:                                          # QUIK ЕБС
-    # trade_filepath: 'C:/QUIK_VTB_2025_ЕБС/algotrade/input.tri'
-    trade_filepath: 'C:/QUIK_VTB_2025_ЕБС/algotrade/test.tri'
+    trade_filepath: 'C:/QUIK_VTB_2025_ЕБС/algotrade/input.tri'
+    # trade_filepath: 'C:/QUIK_VTB_2025_ЕБС/algotrade/test.tri'
     trade_account: 'SPBFUT192yc'
     rts:
       target_quantity: 2

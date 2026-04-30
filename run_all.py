@@ -72,7 +72,7 @@ HARD_STEPS: list[Path] = [
     ROOT / "mix" / "combine" / "sentiment_combine.py",
     ROOT / "mix" / "combine" / "sentiment_to_predict.py",
 
-    ROOT / "trade" / "trade_mix_combo_ebs.py",
+    ROOT / "trade" / "trade_mix_ebs.py",
 
     # ==================== RTS ====================
     ROOT / "rts" / "shared" / "download_minutes_to_db.py",
@@ -92,7 +92,7 @@ HARD_STEPS: list[Path] = [
     ROOT / "rts" / "combine" / "sentiment_combine.py",
     ROOT / "rts" / "combine" / "sentiment_to_predict.py",
 
-    ROOT / "trade" / "trade_rts_combo_ebs.py",
+    ROOT / "trade" / "trade_rts_ebs.py",
 
     # ==================== NG ====================
     ROOT / "ng" / "shared" / "download_minutes_to_db.py",
@@ -208,7 +208,7 @@ HARD_STEPS: list[Path] = [
     ROOT / "spyf" / "combine" / "sentiment_combine.py",
     ROOT / "spyf" / "combine" / "sentiment_to_predict.py",
 
-    # Торговый MIX combo EBS шаг включён выше сразу после MIX combine.
+    # Торговые EBS-шаги MIX/RTS включены выше сразу после соответствующих combine-прогнозов.
 ]
 
 SOFT_STEPS: list[Path] = [
