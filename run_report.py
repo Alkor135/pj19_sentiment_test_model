@@ -8,6 +8,8 @@
 Запуск:
 .venv/Scripts/python.exe run_report.py
 .venv/Scripts/python.exe run_report.py --tickers mix,rts
+
+Модели для отработки определены ниже, в `TICKER_REPORT_RUNS`:.
 """
 
 from __future__ import annotations
