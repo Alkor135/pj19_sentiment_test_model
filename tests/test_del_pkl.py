@@ -1,6 +1,8 @@
 from pathlib import Path
 
-from del_pkl import delete_files, find_pkl_files
+import pytest
+
+from del_pkl import delete_files, find_pkl_files, resolve_target_roots
 
 
 def test_find_pkl_files_recursively_ignores_non_pkl(tmp_path):
@@ -30,3 +32,17 @@ def test_delete_files_removes_only_given_paths(tmp_path):
     assert not first.exists()
     assert not second.exists()
     assert keep.exists()
+
+
+def test_resolve_target_roots_returns_requested_project_folders(tmp_path):
+    rts = tmp_path / "rts"
+    mix = tmp_path / "mix"
+    rts.mkdir()
+    mix.mkdir()
+
+    assert resolve_target_roots(tmp_path, ["rts"]) == [rts]
+
+
+def test_resolve_target_roots_rejects_unknown_folder(tmp_path):
+    with pytest.raises(ValueError, match="Папка не найдена"):
+        resolve_target_roots(tmp_path, ["unknown"])
