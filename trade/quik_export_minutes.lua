@@ -21,7 +21,7 @@ local OUT_TMP   = OUT .. ".tmp"
 local CLASS     = "SPBFUT"
 local TICKERS   = {"RIM6", "MXM6", "NGM6", "SiM6", "SFM6"}
 local PERIOD_MS = 5000
-local TAIL_BARS = 60
+local TAIL_BARS = 1800
 
 local is_run = true
 local ds_map = {}

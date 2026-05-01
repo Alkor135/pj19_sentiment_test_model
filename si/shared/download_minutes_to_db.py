@@ -347,7 +347,8 @@ def fill_today_tail_from_quik(
         csv_path: Path,
         connection: sqlite3.Connection,
         cursor: sqlite3.Cursor,
-        today_date: date) -> None:
+        today_date: date,
+        now: datetime = None) -> None:
     """
     Добирает последние минутные бары за сегодня из CSV, который пишет
     lua-экспортёр QUIK (trade/quik_export_minutes.lua).
@@ -357,7 +358,9 @@ def fill_today_tail_from_quik(
     данные пишутся в CSV и здесь мержатся в sqlite.
 
     Добавляются только минуты, которые строго позже max(TRADEDATE) в БД
-    за сегодня и не позже 20:59 (время закрытия дневного бара по settings.yaml).
+    за сегодня и не позже time_end (время закрытия дневного бара по settings.yaml).
+    Если сегодняшних ISS-баров нет вообще, используем последний активный контракт
+    из БД как seed и заполняем сегодняшнюю часть сессии из QUIK.
     Используется INSERT OR IGNORE: существующие ISS-бары не перезаписываются.
 
     Любая ошибка (нет файла, устарел, повреждён, QUIK не запущен) приводит к
@@ -367,11 +370,19 @@ def fill_today_tail_from_quik(
         logger.info(f"QUIK tail-fill: CSV не найден ({csv_path}), пропускаем")
         return
 
+    now_dt = now or datetime.now()
+
     # Проверка свежести: если файл не обновлялся > 10 минут, QUIK скорее всего не пишет
     mtime = datetime.fromtimestamp(csv_path.stat().st_mtime)
-    if (datetime.now() - mtime) > timedelta(minutes=10):
+    if (now_dt - mtime) > timedelta(minutes=10):
         logger.info(f"QUIK tail-fill: CSV устарел (mtime={mtime}), пропускаем")
         return
+
+    try:
+        cutoff_time = datetime.strptime(settings.get('time_end', '20:59:59'), '%H:%M:%S').time()
+    except (TypeError, ValueError):
+        cutoff_time = time(20, 59, 59)
+    cutoff = datetime.combine(today_date, cutoff_time).replace(second=0, microsecond=0)
 
     today_str = today_date.strftime('%Y-%m-%d')
     cursor.execute(
@@ -380,14 +391,41 @@ def fill_today_tail_from_quik(
     )
     row = cursor.fetchone()
     if not row or row[2] is None:
-        logger.info("QUIK tail-fill: в БД нет сегодняшних ISS-баров, пропускаем")
-        return
+        cursor.execute(
+            "SELECT SECID, LSTTRADE, TRADEDATE FROM Futures "
+            "WHERE DATE(TRADEDATE) < ? ORDER BY TRADEDATE DESC LIMIT 1",
+            (today_str,)
+        )
+        seed_row = cursor.fetchone()
+        if not seed_row:
+            logger.info("QUIK tail-fill: в БД нет предыдущего контракта для seed-fill, пропускаем")
+            return
 
-    current_ticker = row[0]
-    lasttrade = row[1]
-    max_iss_dt = datetime.strptime(row[2], '%Y-%m-%d %H:%M:%S')
+        current_ticker = seed_row[0]
+        lasttrade = seed_row[1]
+        try:
+            lasttrade_date = datetime.strptime(str(lasttrade), '%Y-%m-%d').date()
+        except (TypeError, ValueError):
+            logger.info(f"QUIK tail-fill: не удалось прочитать LSTTRADE={lasttrade}, пропускаем")
+            return
 
-    cutoff = datetime.combine(today_date, time(20, 59))
+        if lasttrade_date <= today_date:
+            logger.info(
+                f"QUIK tail-fill: последний контракт {current_ticker} истёк {lasttrade_date}, "
+                "без сегодняшних ISS-баров seed-fill небезопасен"
+            )
+            return
+
+        max_iss_dt = datetime.combine(today_date, time.min)
+        logger.warning(
+            f"QUIK tail-fill: ISS не дал сегодняшних баров, пробуем seed-fill "
+            f"из CSV для {current_ticker} до {cutoff.time()}"
+        )
+    else:
+        current_ticker = row[0]
+        lasttrade = row[1]
+        max_iss_dt = datetime.strptime(row[2], '%Y-%m-%d %H:%M:%S')
+
     if max_iss_dt >= cutoff:
         logger.info(f"QUIK tail-fill: ISS уже покрывает хвост до {max_iss_dt}, не требуется")
         return
@@ -431,6 +469,15 @@ def fill_today_tail_from_quik(
         )
     logger.info(f"QUIK tail-fill: добавлено {len(rows_to_insert)} минут "
                 f"за {today_date} ({current_ticker}, {max_iss_dt.time()} → {cutoff.time()})")
+
+
+def log_if_no_today_bars(cursor: sqlite3.Cursor, today_date: date) -> None:
+    """Логирует итоговое отсутствие сегодняшних минуток после MOEX и QUIK fallback."""
+    today_str = today_date.strftime('%Y-%m-%d')
+    cursor.execute("SELECT COUNT(*) FROM Futures WHERE DATE(TRADEDATE) = ?", (today_str,))
+    count = cursor.fetchone()[0]
+    if count == 0:
+        logger.warning("БД нет сегодняшних баров, пропускаем")
 
 
 def main(
@@ -484,6 +531,8 @@ def main(
                 )
             except Exception as e:
                 logger.error(f"QUIK tail-fill упал, игнорируем: {e}")
+
+        log_if_no_today_bars(cursor, datetime.now().date())
 
     except Exception as e:
         logger.error(f"Ошибка в main: {e}")
