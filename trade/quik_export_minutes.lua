@@ -20,7 +20,7 @@ local OUT       = "C:\\Users\\Alkor\\VSCode\\pj19_sentiment_test_model\\trade\\q
 local OUT_TMP   = OUT .. ".tmp"
 local CLASS     = "SPBFUT"
 local TICKERS   = {"RIM6", "MXM6", "NGM6", "SiM6", "SFM6"}
-local PERIOD_MS = 5000
+local PERIOD_MS = 30000
 local TAIL_BARS = 1800
 
 local is_run = true
