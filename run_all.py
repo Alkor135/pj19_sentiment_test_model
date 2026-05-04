@@ -129,6 +129,11 @@ HARD_STEPS: list[Path] = [
     ROOT / "ng" / "qwen3_14b" / "rules_recommendation.py",
     ROOT / "ng" / "qwen3_14b" / "sentiment_to_predict.py",
 
+    ROOT / "ng" / "gpt-oss_20b" / "sentiment_analysis.py",
+    ROOT / "ng" / "gpt-oss_20b" / "sentiment_group_stats.py",
+    ROOT / "ng" / "gpt-oss_20b" / "rules_recommendation.py",
+    ROOT / "ng" / "gpt-oss_20b" / "sentiment_to_predict.py",
+
     ROOT / "ng" / "combine" / "sentiment_combine.py",
     ROOT / "ng" / "combine" / "sentiment_to_predict.py",
 
@@ -166,6 +171,11 @@ HARD_STEPS: list[Path] = [
     ROOT / "si" / "qwen3_14b" / "sentiment_group_stats.py",
     ROOT / "si" / "qwen3_14b" / "rules_recommendation.py",
     ROOT / "si" / "qwen3_14b" / "sentiment_to_predict.py",
+
+    ROOT / "si" / "gpt-oss_20b" / "sentiment_analysis.py",
+    ROOT / "si" / "gpt-oss_20b" / "sentiment_group_stats.py",
+    ROOT / "si" / "gpt-oss_20b" / "rules_recommendation.py",
+    ROOT / "si" / "gpt-oss_20b" / "sentiment_to_predict.py",
 
     ROOT / "si" / "combine" / "sentiment_combine.py",
     ROOT / "si" / "combine" / "sentiment_to_predict.py",
@@ -205,6 +215,11 @@ HARD_STEPS: list[Path] = [
     ROOT / "spyf" / "qwen3_14b" / "rules_recommendation.py",
     ROOT / "spyf" / "qwen3_14b" / "sentiment_to_predict.py",
 
+    ROOT / "spyf" / "gpt-oss_20b" / "sentiment_analysis.py",
+    ROOT / "spyf" / "gpt-oss_20b" / "sentiment_group_stats.py",
+    ROOT / "spyf" / "gpt-oss_20b" / "rules_recommendation.py",
+    ROOT / "spyf" / "gpt-oss_20b" / "sentiment_to_predict.py",
+
     ROOT / "spyf" / "combine" / "sentiment_combine.py",
     ROOT / "spyf" / "combine" / "sentiment_to_predict.py",
 
@@ -233,12 +248,18 @@ SOFT_STEPS: list[Path] = [
     ROOT / "mix" / "qwen2.5_14b" / "rules_recommendation.py",
     ROOT / "mix" / "qwen2.5_14b" / "sentiment_to_predict.py",
 
+    ROOT / "mix" / "gpt-oss_20b" / "sentiment_analysis.py",
+    ROOT / "mix" / "gpt-oss_20b" / "sentiment_group_stats.py",
+    ROOT / "mix" / "gpt-oss_20b" / "rules_recommendation.py",
+    ROOT / "mix" / "gpt-oss_20b" / "sentiment_to_predict.py",
+
     ROOT / "mix" / "gemma3_12b" / "sentiment_backtest.py",
     ROOT / "mix" / "gemma4_e2b" / "sentiment_backtest.py",
     ROOT / "mix" / "gemma4_e4b" / "sentiment_backtest.py",
     ROOT / "mix" / "qwen2.5_14b" / "sentiment_backtest.py",
     ROOT / "mix" / "qwen2.5_7b" / "sentiment_backtest.py",
     ROOT / "mix" / "qwen3_14b" / "sentiment_backtest.py",
+    ROOT / "mix" / "gpt-oss_20b" / "sentiment_backtest.py",
 
     # ==================== RTS ====================
     ROOT / "rts" / "gemma3_12b" / "sentiment_analysis.py",
@@ -261,12 +282,18 @@ SOFT_STEPS: list[Path] = [
     ROOT / "rts" / "qwen2.5_14b" / "rules_recommendation.py",
     ROOT / "rts" / "qwen2.5_14b" / "sentiment_to_predict.py",
 
+    ROOT / "rts" / "qwen2.5_7b" / "sentiment_analysis.py",
+    ROOT / "rts" / "qwen2.5_7b" / "sentiment_group_stats.py",
+    ROOT / "rts" / "qwen2.5_7b" / "rules_recommendation.py",
+    ROOT / "rts" / "qwen2.5_7b" / "sentiment_to_predict.py",
+
     ROOT / "rts" / "gemma3_12b" / "sentiment_backtest.py",
     ROOT / "rts" / "gemma4_e2b" / "sentiment_backtest.py",
     ROOT / "rts" / "gemma4_e4b" / "sentiment_backtest.py",
     ROOT / "rts" / "qwen2.5_14b" / "sentiment_backtest.py",
     ROOT / "rts" / "qwen2.5_7b" / "sentiment_backtest.py",
     ROOT / "rts" / "qwen3_14b" / "sentiment_backtest.py",
+    ROOT / "rts" / "gpt-oss_20b" / "sentiment_backtest.py",
 
     # ==================== NG ====================
     ROOT / "ng" / "gemma3_12b" / "sentiment_backtest.py",
@@ -275,7 +302,7 @@ SOFT_STEPS: list[Path] = [
     ROOT / "ng" / "qwen2.5_14b" / "sentiment_backtest.py",
     ROOT / "ng" / "qwen2.5_7b" / "sentiment_backtest.py",
     ROOT / "ng" / "qwen3_14b" / "sentiment_backtest.py",
-
+    ROOT / "ng" / "gpt-oss_20b" / "sentiment_backtest.py",
 
     # ==================== SI ====================
     ROOT / "si" / "gemma3_12b" / "sentiment_backtest.py",
@@ -284,6 +311,7 @@ SOFT_STEPS: list[Path] = [
     ROOT / "si" / "qwen2.5_14b" / "sentiment_backtest.py",
     ROOT / "si" / "qwen2.5_7b" / "sentiment_backtest.py",
     ROOT / "si" / "qwen3_14b" / "sentiment_backtest.py",
+    ROOT / "si" / "gpt-oss_20b" / "sentiment_backtest.py",
 
     # ==================== SPYF ====================
     ROOT / "spyf" / "gemma3_12b" / "sentiment_backtest.py",
@@ -292,6 +320,7 @@ SOFT_STEPS: list[Path] = [
     ROOT / "spyf" / "qwen2.5_14b" / "sentiment_backtest.py",
     ROOT / "spyf" / "qwen2.5_7b" / "sentiment_backtest.py",
     ROOT / "spyf" / "qwen3_14b" / "sentiment_backtest.py",
+    ROOT / "spyf" / "gpt-oss_20b" / "sentiment_backtest.py",
 ]
 
 
