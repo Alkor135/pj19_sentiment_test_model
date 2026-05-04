@@ -18,7 +18,7 @@ sentiment_backtest), без генерации прогноза. После вс
 python rts/run_rts_report.py
 python rts/run_rts_report.py --only gemma3_12b,gemma4_e2b --keep-going
 python rts/run_rts_report.py --keep-going
-python rts/run_rts_report.py --only gemma3_12b,gemma4_e2b,gemma4_e4b,qwen2.5_14b,qwen2.5_7b,qwen3_14b,combine
+python rts/run_rts_report.py --only gemma3_12b,gemma4_e2b,gemma4_e4b,qwen2.5_14b,qwen2.5_7b,qwen3_14b,gpt-oss_20b,combine
 """
 
 from __future__ import annotations
