@@ -34,6 +34,8 @@ model_defaults:
   group_stats_output_xlsx: 'sentiment_group_stats.xlsx'
 
 models:
+  gpt-oss_20b:
+    sentiment_model: 'gpt-oss:20b'
   gemma3_12b:
     sentiment_model: 'gemma3:12b'
   gemma4_26b:
