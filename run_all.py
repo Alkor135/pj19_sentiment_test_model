@@ -5,7 +5,8 @@
 в HARD_STEPS и SOFT_STEPS. HARD_STEPS останавливают весь пайплайн при ошибке;
 SOFT_STEPS логируют ошибку и продолжают выполнение.
 
-По умолчанию включены активные тикеры и модели из корневых run_trade/run_report:
+По умолчанию включены активные тикеры и модели из ручного расписания
+`HARD_STEPS`/`SOFT_STEPS` и корневого `run_report.py`:
 mix, ng, rts, si, spyf; gemma3_12b, gemma4_e2b, gemma4_e4b,
 qwen2.5_14b, qwen2.5_7b, qwen3_14b.
 

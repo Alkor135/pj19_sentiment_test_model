@@ -64,7 +64,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `<ticker>/<model>/run_report.py` — последовательно вызывает 4 отчётных шага через `subprocess`. Останавливается на первой ошибке.
 - `<ticker>/<model>/run_trade.py` — последовательно вызывает 5 шагов, включая `sentiment_to_predict.py`.
 - `<ticker>/run_<ticker>.py` — обнаруживает `<model>/run_report.py` через `iterdir()` и запускает их по очереди, затем (если не указан `--only`) последовательно прогоняет `combine/sentiment_combine.py` и `combine/sentiment_to_predict.py`. Поддерживает `--only` (фильтр моделей; при этом combine пропускается) и `--keep-going` (не останавливаться при падении одной модели или combine-шага).
-- `run.py` (корень) — перебирает тикеры, прокидывает `--only` и `--keep-going` дальше.
+- `run_report.py` (корень) — запускает тикерные отчётные оркестраторы `<ticker>/run_<ticker>_report.py` по явному списку активных тикеров и моделей.
+- `run_all.py` (корень) — ежедневное ручное расписание полного торгового sentiment-пайплайна; запускает конкретные шаги напрямую из `HARD_STEPS` и `SOFT_STEPS`.
 - `trade/` — локальные скрипты выставления заявок через QUIK `.tri` и Lua-экспорт минуток/позиций. `trade_mix_ebs.py` и `trade_rts_ebs.py` работают с секцией `accounts.ebs` в `trade/settings.yaml`, читают сигнал из `predict_dir/YYYY-MM-DD.txt`, а активные контракты берут из `common` в `<ticker>/settings.yaml`.
 
 **Конфиг тикера:** `<ticker>/settings.yaml` — секционный файл. `common` содержит тикерные параметры, активные контракты, внешние пути и окна дат; `shared` — параметры подготовки данных; `model_defaults` — общие настройки моделей; `models` — различия конкретных моделей; `combine` — параметры объединённого сигнала. Модельные/shared/combine-скрипты читают его через `<ticker>/config_loader.py`; EBS trade-скрипты читают `common` напрямую из `<ticker>/settings.yaml`.
