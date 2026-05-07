@@ -19,6 +19,7 @@ python ng/run_ng_report.py
 python ng/run_ng_report.py --only gemma3_12b,gemma4_e2b --keep-going
 python ng/run_ng_report.py --keep-going
 python ng/run_ng_report.py --only gemma3_12b,gemma4_e2b,gemma4_e4b,qwen2.5_14b,qwen2.5_7b,gpt-oss_20b,combine
+python ng/run_ng_report.py --only gemma3_12b,gemma4_e2b,gemma4_e4b,qwen2.5_14b,qwen2.5_7b,combine --keep-going
 """
 
 from __future__ import annotations

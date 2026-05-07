@@ -19,6 +19,7 @@ python spyf/run_spyf_report.py
 python spyf/run_spyf_report.py --only gemma3_12b,gemma4_e2b --keep-going
 python spyf/run_spyf_report.py --keep-going
 python spyf/run_spyf_report.py --only gemma3_12b,gemma4_e2b,gemma4_e4b,qwen2.5_14b,qwen2.5_7b,gpt-oss_20b,combine
+python spyf/run_spyf_report.py --only gemma3_12b,gemma4_e2b,gemma4_e4b,qwen2.5_14b,qwen2.5_7b,combine --keep-going
 """
 
 from __future__ import annotations

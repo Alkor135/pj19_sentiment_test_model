@@ -20,6 +20,7 @@ python rts/run_rts_report.py --only gemma3_12b,gemma4_e2b --keep-going
 python rts/run_rts_report.py --keep-going
 python rts/run_rts_report.py --only gemma3_12b,gemma4_e2b,gemma4_e4b,qwen2.5_14b,qwen2.5_7b,qwen3_14b,gpt-oss_20b,combine
 python rts/run_rts_report.py --only gemma3_12b,gemma4_e2b,gemma4_e4b,qwen2.5_14b,qwen2.5_7b,gpt-oss_20b,combine
+python rts/run_rts_report.py --only gemma3_12b,gemma4_e2b,gemma4_e4b,qwen2.5_14b,qwen2.5_7b,combine --keep-going
 """
 
 from __future__ import annotations
