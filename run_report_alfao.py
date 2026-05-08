@@ -6,8 +6,8 @@
 явной структурой `TICKER_REPORT_RUNS` ниже.
 
 Запуск:
-.venv/Scripts/python.exe run_report.py
-.venv/Scripts/python.exe run_report.py --tickers mix,rts
+.venv/Scripts/python.exe run_report_alfao.py
+.venv/Scripts/python.exe run_report_alfao.py --tickers mix,rts
 
 Модели для отработки определены ниже, в `TICKER_REPORT_RUNS`:.
 """
