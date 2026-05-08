@@ -29,7 +29,8 @@ accounts:
       predict_dir: 'C:/Users/Alkor/gd/predict_ai/pj19/rts/combine'
     mix:
       target_quantity: 2
-      predict_dir: 'C:/Users/Alkor/gd/predict_ai/pj19/mix/combine'
+      # predict_dir: 'C:/Users/Alkor/gd/predict_ai/pj19/mix/combine'
+      predict_dir: 'C:/Users/Alkor/gd/predict_ai/pj19/mix/gemma3_12b'
     ng:
       target_quantity: 0
     si:
