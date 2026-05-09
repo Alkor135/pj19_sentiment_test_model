@@ -1,15 +1,18 @@
 # settings.yaml
+# Конфигурация серверного RSS-скрапера.
+# Секции rss/<provider>:
+# каждый провайдер содержит список RSS-лент, которые пишутся в общую SQLite БД.
 
-base_dir: "/home/user/rss_scraper/db_data"
+base_dir: "/home/user/rss_scraper/db_data"  # Папка для SQLite БД с новостями на сервере
 
-max_concurrent_requests: 5   # контроль параллелизма
+max_concurrent_requests: 5   # Контроль параллелизма HTTP-запросов к RSS-лентам
 
 rss:
-  interfax:
+  interfax:  # RSS-ленты Интерфакса
     - "https://www.interfax.ru/rss.asp"
-  prime:
+  prime:  # RSS-ленты ПРАЙМ
     - "https://1prime.ru/export/rss2/archive/index.xml"
-  investing:
+  investing:  # RSS-ленты Investing.com
   #  - "https://ru.investing.com/rss/286.rss"
   #  - "https://ru.investing.com/rss/290.rss"
   #  - "https://ru.investing.com/rss/302.rss"

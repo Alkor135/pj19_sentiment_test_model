@@ -1,13 +1,18 @@
+# beget/settings.yaml
+# Конфигурация локальной синхронизации RSS-баз и логов с сервера.
+# Секции sources:
+# каждый источник описывает локальные папки, удалённые папки и правила поиска файлов.
+
 sources:
-  - name: all_providers
-    db_dir: C:\Users\Alkor\gd\db_rss
-    log_dir: C:\Users\Alkor\gd\db_rss\log
-    db_remote: /home/user/rss_scraper/db_data/
-    log_remote: /home/user/rss_scraper/log/
-    log_pattern: rss_scraper_all_providers_to_db_month_msk*.log
-    db_file_pattern: "rss_news_{year}_{month:02d}.db"
-    provider_column: provider
-    date_column: date
+  - name: all_providers  # Имя источника для отчётов и диагностических сообщений
+    db_dir: C:\Users\Alkor\gd\db_rss  # Локальная папка SQLite БД новостей
+    log_dir: C:\Users\Alkor\gd\db_rss\log  # Локальная папка логов RSS-скрапера
+    db_remote: /home/user/rss_scraper/db_data/  # Удалённая папка SQLite БД на сервере
+    log_remote: /home/user/rss_scraper/log/  # Удалённая папка логов на сервере
+    log_pattern: rss_scraper_all_providers_to_db_month_msk*.log  # Маска логов для проверки свежести
+    db_file_pattern: "rss_news_{year}_{month:02d}.db"  # Шаблон имени месячной SQLite БД
+    provider_column: provider  # Колонка с названием провайдера в общей БД
+    date_column: date  # Колонка с датой новости
 
   # Отключено: сервер больше не собирает отдельный поток investing,
   # все провайдеры (включая investing) идут через all_providers.
@@ -22,4 +27,4 @@ sources:
   #   provider_fixed: investing
   #   date_column: date
 
-remote_host: root@109.172.46.10
+remote_host: root@109.172.46.10  # SSH-хост для rsync/проверок удалённых RSS-файлов

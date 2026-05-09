@@ -1,1 +1,5 @@
-buhinvest_excel_path: "C:/Users/Alkor/gd/ВТБ_ЕБС_SPBFUT192yc.xlsx"
+# buhinvest_analize/settings.yaml
+# Конфигурация отчётов по Excel-выгрузке Buhinvest.
+# Значение можно переопределить CLI-аргументом --file.
+
+buhinvest_excel_path: "C:/Users/Alkor/gd/ВТБ_ЕБС_SPBFUT192yc.xlsx"  # Путь к локальному Excel-файлу выгрузки Buhinvest

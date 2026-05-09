@@ -1,6 +1,9 @@
 # trade/settings.yaml
+# Конфигурация локальных QUIK trade-скриптов.
+# Секции accounts/<account>/<ticker>:
+# account задаёт путь к .tri и торговый счёт, тикерные секции «накрывают» целевой объём и путь к прогнозу.
 
-done_marker_reset_before: '21:00:00'
+done_marker_reset_before: '21:00:00'  # Время, до которого marker-файл прошлого запуска можно сбросить перед новой торговой сессией
 
 # trade_account: 'SPBFUT16qg3'  # Торговый счёт на срочном рынке
 
@@ -8,32 +11,32 @@ done_marker_reset_before: '21:00:00'
 
 accounts:
   iis:                                          # QUIK ИИС
-    trade_filepath: 'C:/QUIK_VTB_2022_ИИС/algotrade/input.tri'
-    trade_account: 'SPBFUT16qg3'
+    trade_filepath: 'C:/QUIK_VTB_2022_ИИС/algotrade/input.tri'  # Файл заявок .tri, который читает QUIK
+    trade_account: 'SPBFUT16qg3'  # Торговый счёт на срочном рынке
     rts:
-      target_quantity: 0
+      target_quantity: 0                       # Целевая позиция в контрактах
     mix:
-      target_quantity: 0
+      target_quantity: 0                       # Целевая позиция в контрактах
     ng:
-      target_quantity: 0
+      target_quantity: 0                       # Целевая позиция в контрактах
     si:
-      target_quantity: 0
+      target_quantity: 0                       # Целевая позиция в контрактах
     spyf:
-      target_quantity: 0
+      target_quantity: 0                       # Целевая позиция в контрактах
   ebs:                                          # QUIK ЕБС
-    trade_filepath: 'C:/QUIK_VTB_2025_ЕБС/algotrade/input.tri'
+    trade_filepath: 'C:/QUIK_VTB_2025_ЕБС/algotrade/input.tri'  # Файл заявок .tri, который читает QUIK
     # trade_filepath: 'C:/QUIK_VTB_2025_ЕБС/algotrade/test.tri'
-    trade_account: 'SPBFUT192yc'
+    trade_account: 'SPBFUT192yc'  # Торговый счёт на срочном рынке
     rts:
-      target_quantity: 2
-      predict_dir: 'C:/Users/Alkor/gd/predict_ai/pj19/rts/combine'
+      target_quantity: 2                       # Целевая позиция в контрактах
+      predict_dir: 'C:/Users/Alkor/gd/predict_ai/pj19/rts/combine'  # Папка с прогнозом YYYY-MM-DD.txt
     mix:
-      target_quantity: 2
+      target_quantity: 2                       # Целевая позиция в контрактах
       # predict_dir: 'C:/Users/Alkor/gd/predict_ai/pj19/mix/combine'
-      predict_dir: 'C:/Users/Alkor/gd/predict_ai/pj19/mix/gemma3_12b'
+      predict_dir: 'C:/Users/Alkor/gd/predict_ai/pj19/mix/gemma3_12b'  # Папка с прогнозом YYYY-MM-DD.txt
     ng:
-      target_quantity: 0
+      target_quantity: 0                       # Целевая позиция в контрактах
     si:
-      target_quantity: 0
+      target_quantity: 0                       # Целевая позиция в контрактах
     spyf:
-      target_quantity: 0
+      target_quantity: 0                       # Целевая позиция в контрактах
