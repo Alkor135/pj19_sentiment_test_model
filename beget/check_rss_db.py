@@ -50,7 +50,7 @@ def main():
     """Печатает отдельные блоки проверки RSS-БД за сегодня и за предыдущий день."""
     cfg = load_config()
     now = datetime.now()
-    report_days = [now, now - timedelta(days=1)]
+    report_days = [now - timedelta(days=1), now]
 
     all_days_ok = True
 

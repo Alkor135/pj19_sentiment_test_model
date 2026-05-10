@@ -48,5 +48,8 @@ def test_main_prints_today_and_previous_day(monkeypatch, tmp_path, capsys):
     assert exit_code == 0
     assert "=== RSS DB check: 2026-05-10 ===" in out
     assert "=== RSS DB check: 2026-05-09 ===" in out
+    assert out.index("=== RSS DB check: 2026-05-09 ===") < out.index(
+        "=== RSS DB check: 2026-05-10 ==="
+    )
     assert "ВСЕГО за 2026-05-10: 2" in out
     assert "ВСЕГО за 2026-05-09: 1" in out
