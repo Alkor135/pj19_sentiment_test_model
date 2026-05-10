@@ -1,12 +1,12 @@
 """
 Проверка актуальности скачанных rss-БД: количество новостей
-по каждому провайдеру за текущую дату. Простой вывод в консоль.
+по каждому провайдеру за текущую и предыдущую дату. Простой вывод в консоль.
 """
 
 import sqlite3
 import sys
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 import yaml
 
 GREEN = "\033[92m"
@@ -16,11 +16,13 @@ RESET = "\033[0m"
 
 
 def load_config():
+    """Загружает локальный YAML-конфиг beget/settings.yaml."""
     with open(Path(__file__).parent / "settings.yaml", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 
 def count_by_provider(db_path: Path, src: dict, day: str):
+    """Возвращает количество новостей по провайдерам за указанную дату YYYY-MM-DD."""
     date_col = src["date_column"]
     prov_col = src.get("provider_column")
 
@@ -45,44 +47,56 @@ def count_by_provider(db_path: Path, src: dict, day: str):
 
 
 def main():
+    """Печатает отдельные блоки проверки RSS-БД за сегодня и за предыдущий день."""
     cfg = load_config()
-    today = datetime.now().strftime("%Y-%m-%d")
     now = datetime.now()
+    report_days = [now, now - timedelta(days=1)]
 
-    print(f"\n=== RSS DB check: {today} ===\n")
+    all_days_ok = True
 
-    grand_total = 0
-    any_missing = False
+    for report_day in report_days:
+        day = report_day.strftime("%Y-%m-%d")
 
-    for src in cfg["sources"]:
-        db_dir = Path(src["db_dir"])
-        db_name = src["db_file_pattern"].format(year=now.year, month=now.month)
-        db_path = db_dir / db_name
+        print(f"\n=== RSS DB check: {day} ===\n")
 
-        print(f"[{src['name']}] {db_path.name}")
+        grand_total = 0
+        any_missing = False
 
-        if not db_path.exists():
-            print(RED + f"  файл не найден: {db_path}" + RESET)
-            any_missing = True
-            continue
+        for src in cfg["sources"]:
+            db_dir = Path(src["db_dir"])
+            db_name = src["db_file_pattern"].format(
+                year=report_day.year,
+                month=report_day.month,
+            )
+            db_path = db_dir / db_name
 
-        rows = count_by_provider(db_path, src, today)
-        src_total = sum(n for _, n in rows)
-        grand_total += src_total
+            print(f"[{src['name']}] {db_path.name}")
 
-        if not rows or src_total == 0:
-            print(YELLOW + "  новостей за сегодня нет" + RESET)
-            continue
+            if not db_path.exists():
+                print(RED + f"  файл не найден: {db_path}" + RESET)
+                any_missing = True
+                continue
 
-        for prov, n in rows:
-            print(f"  {prov:<12}: {n:>5}")
-        print(f"  {'ИТОГО':<12}: {src_total:>5}")
-        print()
+            rows = count_by_provider(db_path, src, day)
+            src_total = sum(n for _, n in rows)
+            grand_total += src_total
 
-    color = GREEN if grand_total > 0 and not any_missing else YELLOW
-    print(color + f"ВСЕГО за {today}: {grand_total}" + RESET)
+            if not rows or src_total == 0:
+                print(YELLOW + f"  новостей за {day} нет" + RESET)
+                continue
 
-    return 0 if grand_total > 0 and not any_missing else 1
+            for prov, n in rows:
+                print(f"  {prov:<12}: {n:>5}")
+            print(f"  {'ИТОГО':<12}: {src_total:>5}")
+            print()
+
+        color = GREEN if grand_total > 0 and not any_missing else YELLOW
+        print(color + f"ВСЕГО за {day}: {grand_total}" + RESET)
+
+        if grand_total == 0 or any_missing:
+            all_days_ok = False
+
+    return 0 if all_days_ok else 1
 
 
 if __name__ == "__main__":

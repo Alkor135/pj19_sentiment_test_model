@@ -17,4 +17,8 @@
 .venv/Scripts/python.exe rts/shared/create_markdown_files.py
 ```
 
+`beget/check_rss_db.py` выводит проверку RSS SQLite-БД двумя отдельными блоками:
+за текущую дату и за предыдущую дату, с разбивкой количества новостей по
+провайдерам.
+
 `trade/trade_mix_ebs.py` и `trade/trade_rts_ebs.py` работают с секцией `accounts.ebs` в `trade/settings.yaml`: оттуда берут торговый счёт, путь к `.tri`, объём и `predict_dir`. Активные контракты `ticker_open`/`ticker_close` читаются напрямую из секции `common` файла `<ticker>/settings.yaml`. Сам торговый сигнал берётся только из `<predict_dir>/YYYY-MM-DD.txt` по строке `Предсказанное направление: up/down/skip`; поэтому источник сигнала меняется настройкой `predict_dir`, без правки Python-кода. Lua-экспорт QUIK пишет файлы в `trade/quik_export/`.
