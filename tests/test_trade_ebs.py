@@ -7,6 +7,7 @@ import yaml
 SCRIPT_CASES = [
     ("mix", Path("trade/trade_mix_ebs.py")),
     ("rts", Path("trade/trade_rts_ebs.py")),
+    ("si", Path("trade/trade_si_ebs.py")),
 ]
 SETTINGS_PATH = Path("trade/settings.yaml")
 

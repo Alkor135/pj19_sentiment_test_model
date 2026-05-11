@@ -65,10 +65,10 @@ HARD_STEPS: list[Path] = [
     ROOT / "mix" / "gemma3_12b" / "rules_recommendation.py",
     ROOT / "mix" / "gemma3_12b" / "sentiment_to_predict.py",
 
-    ROOT / "mix" / "gemma4_e4b" / "sentiment_analysis.py",
-    ROOT / "mix" / "gemma4_e4b" / "sentiment_group_stats.py",
-    ROOT / "mix" / "gemma4_e4b" / "rules_recommendation.py",
-    ROOT / "mix" / "gemma4_e4b" / "sentiment_to_predict.py",
+    ROOT / "mix" / "gemma4_e2b" / "sentiment_analysis.py",
+    ROOT / "mix" / "gemma4_e2b" / "sentiment_group_stats.py",
+    ROOT / "mix" / "gemma4_e2b" / "rules_recommendation.py",
+    ROOT / "mix" / "gemma4_e2b" / "sentiment_to_predict.py",
 
     ROOT / "mix" / "combine" / "sentiment_combine.py",
     ROOT / "mix" / "combine" / "sentiment_to_predict.py",
@@ -80,25 +80,45 @@ HARD_STEPS: list[Path] = [
     ROOT / "rts" / "shared" / "convert_minutes_to_days.py",
     # ROOT / "rts" / "shared" / "create_markdown_files.py",
 
-    ROOT / "rts" / "qwen2.5_7b" / "sentiment_analysis.py",
-    ROOT / "rts" / "qwen2.5_7b" / "sentiment_group_stats.py",
-    ROOT / "rts" / "qwen2.5_7b" / "rules_recommendation.py",
-    ROOT / "rts" / "qwen2.5_7b" / "sentiment_to_predict.py",
+    ROOT / "rts" / "gemma4_e2b" / "sentiment_analysis.py",
+    ROOT / "rts" / "gemma4_e2b" / "sentiment_group_stats.py",
+    ROOT / "rts" / "gemma4_e2b" / "rules_recommendation.py",
+    ROOT / "rts" / "gemma4_e2b" / "sentiment_to_predict.py",
 
-    ROOT / "rts" / "qwen3_14b" / "sentiment_analysis.py",
-    ROOT / "rts" / "qwen3_14b" / "sentiment_group_stats.py",
-    ROOT / "rts" / "qwen3_14b" / "rules_recommendation.py",
-    ROOT / "rts" / "qwen3_14b" / "sentiment_to_predict.py",
+    ROOT / "rts" / "gemma4_e4b" / "sentiment_analysis.py",
+    ROOT / "rts" / "gemma4_e4b" / "sentiment_group_stats.py",
+    ROOT / "rts" / "gemma4_e4b" / "rules_recommendation.py",
+    ROOT / "rts" / "gemma4_e4b" / "sentiment_to_predict.py",
 
     ROOT / "rts" / "combine" / "sentiment_combine.py",
     ROOT / "rts" / "combine" / "sentiment_to_predict.py",
 
     ROOT / "trade" / "trade_rts_ebs.py",
 
+    # ==================== SI ====================
+    ROOT / "si" / "shared" / "download_minutes_to_db.py",
+    ROOT / "si" / "shared" / "convert_minutes_to_days.py",
+    # ROOT / "si" / "shared" / "create_markdown_files.py",
+
+    ROOT / "si" / "gpt-oss_20b" / "sentiment_analysis.py",
+    ROOT / "si" / "gpt-oss_20b" / "sentiment_group_stats.py",
+    ROOT / "si" / "gpt-oss_20b" / "rules_recommendation.py",
+    ROOT / "si" / "gpt-oss_20b" / "sentiment_to_predict.py",
+
+    ROOT / "si" / "gemma4_e4b" / "sentiment_analysis.py",
+    ROOT / "si" / "gemma4_e4b" / "sentiment_group_stats.py",
+    ROOT / "si" / "gemma4_e4b" / "rules_recommendation.py",
+    ROOT / "si" / "gemma4_e4b" / "sentiment_to_predict.py",
+
+    ROOT / "si" / "combine" / "sentiment_combine.py",
+    ROOT / "si" / "combine" / "sentiment_to_predict.py",
+
+    ROOT / "trade" / "trade_si_ebs.py",
+
     # ==================== NG ====================
     ROOT / "ng" / "shared" / "download_minutes_to_db.py",
     ROOT / "ng" / "shared" / "convert_minutes_to_days.py",
-    ROOT / "ng" / "shared" / "create_markdown_files.py",
+    # ROOT / "ng" / "shared" / "create_markdown_files.py",
 
     ROOT / "ng" / "gemma3_12b" / "sentiment_analysis.py",
     ROOT / "ng" / "gemma3_12b" / "sentiment_group_stats.py",
@@ -138,53 +158,10 @@ HARD_STEPS: list[Path] = [
     ROOT / "ng" / "combine" / "sentiment_combine.py",
     ROOT / "ng" / "combine" / "sentiment_to_predict.py",
 
-    # ==================== SI ====================
-    ROOT / "si" / "shared" / "download_minutes_to_db.py",
-    ROOT / "si" / "shared" / "convert_minutes_to_days.py",
-    ROOT / "si" / "shared" / "create_markdown_files.py",
-
-    ROOT / "si" / "gemma3_12b" / "sentiment_analysis.py",
-    ROOT / "si" / "gemma3_12b" / "sentiment_group_stats.py",
-    ROOT / "si" / "gemma3_12b" / "rules_recommendation.py",
-    ROOT / "si" / "gemma3_12b" / "sentiment_to_predict.py",
-
-    ROOT / "si" / "gemma4_e2b" / "sentiment_analysis.py",
-    ROOT / "si" / "gemma4_e2b" / "sentiment_group_stats.py",
-    ROOT / "si" / "gemma4_e2b" / "rules_recommendation.py",
-    ROOT / "si" / "gemma4_e2b" / "sentiment_to_predict.py",
-
-    ROOT / "si" / "gemma4_e4b" / "sentiment_analysis.py",
-    ROOT / "si" / "gemma4_e4b" / "sentiment_group_stats.py",
-    ROOT / "si" / "gemma4_e4b" / "rules_recommendation.py",
-    ROOT / "si" / "gemma4_e4b" / "sentiment_to_predict.py",
-
-    ROOT / "si" / "qwen2.5_14b" / "sentiment_analysis.py",
-    ROOT / "si" / "qwen2.5_14b" / "sentiment_group_stats.py",
-    ROOT / "si" / "qwen2.5_14b" / "rules_recommendation.py",
-    ROOT / "si" / "qwen2.5_14b" / "sentiment_to_predict.py",
-
-    ROOT / "si" / "qwen2.5_7b" / "sentiment_analysis.py",
-    ROOT / "si" / "qwen2.5_7b" / "sentiment_group_stats.py",
-    ROOT / "si" / "qwen2.5_7b" / "rules_recommendation.py",
-    ROOT / "si" / "qwen2.5_7b" / "sentiment_to_predict.py",
-
-    ROOT / "si" / "qwen3_14b" / "sentiment_analysis.py",
-    ROOT / "si" / "qwen3_14b" / "sentiment_group_stats.py",
-    ROOT / "si" / "qwen3_14b" / "rules_recommendation.py",
-    ROOT / "si" / "qwen3_14b" / "sentiment_to_predict.py",
-
-    ROOT / "si" / "gpt-oss_20b" / "sentiment_analysis.py",
-    ROOT / "si" / "gpt-oss_20b" / "sentiment_group_stats.py",
-    ROOT / "si" / "gpt-oss_20b" / "rules_recommendation.py",
-    ROOT / "si" / "gpt-oss_20b" / "sentiment_to_predict.py",
-
-    ROOT / "si" / "combine" / "sentiment_combine.py",
-    ROOT / "si" / "combine" / "sentiment_to_predict.py",
-
     # ==================== SPYF ====================
     ROOT / "spyf" / "shared" / "download_minutes_to_db.py",
     ROOT / "spyf" / "shared" / "convert_minutes_to_days.py",
-    ROOT / "spyf" / "shared" / "create_markdown_files.py",
+    # ROOT / "spyf" / "shared" / "create_markdown_files.py",
 
     ROOT / "spyf" / "gemma3_12b" / "sentiment_analysis.py",
     ROOT / "spyf" / "gemma3_12b" / "sentiment_group_stats.py",
@@ -229,6 +206,11 @@ HARD_STEPS: list[Path] = [
 
 SOFT_STEPS: list[Path] = [
     # ==================== MIX ====================
+    ROOT / "mix" / "gemma4_e4b" / "sentiment_analysis.py",
+    ROOT / "mix" / "gemma4_e4b" / "sentiment_group_stats.py",
+    ROOT / "mix" / "gemma4_e4b" / "rules_recommendation.py",
+    ROOT / "mix" / "gemma4_e4b" / "sentiment_to_predict.py",
+
     ROOT / "mix" / "qwen2.5_7b" / "sentiment_analysis.py",
     ROOT / "mix" / "qwen2.5_7b" / "sentiment_group_stats.py",
     ROOT / "mix" / "qwen2.5_7b" / "rules_recommendation.py",
@@ -238,11 +220,6 @@ SOFT_STEPS: list[Path] = [
     ROOT / "mix" / "qwen3_14b" / "sentiment_group_stats.py",
     ROOT / "mix" / "qwen3_14b" / "rules_recommendation.py",
     ROOT / "mix" / "qwen3_14b" / "sentiment_to_predict.py",
-
-    ROOT / "mix" / "gemma4_e2b" / "sentiment_analysis.py",
-    ROOT / "mix" / "gemma4_e2b" / "sentiment_group_stats.py",
-    ROOT / "mix" / "gemma4_e2b" / "rules_recommendation.py",
-    ROOT / "mix" / "gemma4_e2b" / "sentiment_to_predict.py",
 
     ROOT / "mix" / "qwen2.5_14b" / "sentiment_analysis.py",
     ROOT / "mix" / "qwen2.5_14b" / "sentiment_group_stats.py",
@@ -268,15 +245,15 @@ SOFT_STEPS: list[Path] = [
     ROOT / "rts" / "gemma3_12b" / "rules_recommendation.py",
     ROOT / "rts" / "gemma3_12b" / "sentiment_to_predict.py",
 
-    ROOT / "rts" / "gemma4_e2b" / "sentiment_analysis.py",
-    ROOT / "rts" / "gemma4_e2b" / "sentiment_group_stats.py",
-    ROOT / "rts" / "gemma4_e2b" / "rules_recommendation.py",
-    ROOT / "rts" / "gemma4_e2b" / "sentiment_to_predict.py",
+    ROOT / "rts" / "gpt-oss_20b" / "sentiment_analysis.py",
+    ROOT / "rts" / "gpt-oss_20b" / "sentiment_group_stats.py",
+    ROOT / "rts" / "gpt-oss_20b" / "rules_recommendation.py",
+    ROOT / "rts" / "gpt-oss_20b" / "sentiment_to_predict.py",
 
-    ROOT / "rts" / "gemma4_e4b" / "sentiment_analysis.py",
-    ROOT / "rts" / "gemma4_e4b" / "sentiment_group_stats.py",
-    ROOT / "rts" / "gemma4_e4b" / "rules_recommendation.py",
-    ROOT / "rts" / "gemma4_e4b" / "sentiment_to_predict.py",
+    ROOT / "rts" / "qwen3_14b" / "sentiment_analysis.py",
+    ROOT / "rts" / "qwen3_14b" / "sentiment_group_stats.py",
+    ROOT / "rts" / "qwen3_14b" / "rules_recommendation.py",
+    ROOT / "rts" / "qwen3_14b" / "sentiment_to_predict.py",
 
     ROOT / "rts" / "qwen2.5_14b" / "sentiment_analysis.py",
     ROOT / "rts" / "qwen2.5_14b" / "sentiment_group_stats.py",
@@ -306,6 +283,31 @@ SOFT_STEPS: list[Path] = [
     ROOT / "ng" / "gpt-oss_20b" / "sentiment_backtest.py",
 
     # ==================== SI ====================
+    ROOT / "si" / "gemma4_e2b" / "sentiment_analysis.py",
+    ROOT / "si" / "gemma4_e2b" / "sentiment_group_stats.py",
+    ROOT / "si" / "gemma4_e2b" / "rules_recommendation.py",
+    ROOT / "si" / "gemma4_e2b" / "sentiment_to_predict.py",
+
+    ROOT / "si" / "qwen2.5_14b" / "sentiment_analysis.py",
+    ROOT / "si" / "qwen2.5_14b" / "sentiment_group_stats.py",
+    ROOT / "si" / "qwen2.5_14b" / "rules_recommendation.py",
+    ROOT / "si" / "qwen2.5_14b" / "sentiment_to_predict.py",
+
+    ROOT / "si" / "gemma3_12b" / "sentiment_analysis.py",
+    ROOT / "si" / "gemma3_12b" / "sentiment_group_stats.py",
+    ROOT / "si" / "gemma3_12b" / "rules_recommendation.py",
+    ROOT / "si" / "gemma3_12b" / "sentiment_to_predict.py",
+
+    ROOT / "si" / "qwen2.5_7b" / "sentiment_analysis.py",
+    ROOT / "si" / "qwen2.5_7b" / "sentiment_group_stats.py",
+    ROOT / "si" / "qwen2.5_7b" / "rules_recommendation.py",
+    ROOT / "si" / "qwen2.5_7b" / "sentiment_to_predict.py",
+
+    ROOT / "si" / "qwen3_14b" / "sentiment_analysis.py",
+    ROOT / "si" / "qwen3_14b" / "sentiment_group_stats.py",
+    ROOT / "si" / "qwen3_14b" / "rules_recommendation.py",
+    ROOT / "si" / "qwen3_14b" / "sentiment_to_predict.py",
+
     ROOT / "si" / "gemma3_12b" / "sentiment_backtest.py",
     ROOT / "si" / "gemma4_e2b" / "sentiment_backtest.py",
     ROOT / "si" / "gemma4_e4b" / "sentiment_backtest.py",
