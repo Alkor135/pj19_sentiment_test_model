@@ -68,8 +68,8 @@ models:
     sentiment_model: 'qwen3:14b'
 
 combine:  # Конфигурация для объединённой стратегии (используется в combine и combined_to_predict.py)
-  model_1: 'gemma3_12b'             # Первая модель для объединённого сигнала
-  model_2: 'qwen2.5_7b'             # Вторая модель для объединённого сигнала
+  model_1: 'gpt-oss_20b'            # Первая модель для объединённого сигнала
+  model_2: 'gemma4_e4b'             # Вторая модель для объединённого сигнала
   notional_capital: 90000           # Условный капитал для QuantStats отчёта combine
   predict_path: 'C:/Users/Alkor/gd/predict_ai/pj19/{ticker_lc}/combine'  # Путь для сохранения предсказаний combined модели
   time_start: '21:00:00'            # Начало дневной свечи для расчётов combine, если нужно переопределить common

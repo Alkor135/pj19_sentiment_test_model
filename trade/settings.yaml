@@ -32,11 +32,12 @@ accounts:
       predict_dir: 'C:/Users/Alkor/gd/predict_ai/pj19/rts/combine'  # Папка с прогнозом YYYY-MM-DD.txt
     mix:
       target_quantity: 2                       # Целевая позиция в контрактах
-      # predict_dir: 'C:/Users/Alkor/gd/predict_ai/pj19/mix/combine'
-      predict_dir: 'C:/Users/Alkor/gd/predict_ai/pj19/mix/gemma3_12b'  # Папка с прогнозом YYYY-MM-DD.txt
+      predict_dir: 'C:/Users/Alkor/gd/predict_ai/pj19/mix/combine'
+      # predict_dir: 'C:/Users/Alkor/gd/predict_ai/pj19/mix/gemma3_12b'  # Папка с прогнозом YYYY-MM-DD.txt
     ng:
       target_quantity: 0                       # Целевая позиция в контрактах
     si:
-      target_quantity: 0                       # Целевая позиция в контрактах
+      target_quantity: 1                       # Целевая позиция в контрактах
+      predict_dir: 'C:/Users/Alkor/gd/predict_ai/pj19/si/combine'  # Папка с прогнозом YYYY-MM-DD.txt
     spyf:
       target_quantity: 0                       # Целевая позиция в контрактах
