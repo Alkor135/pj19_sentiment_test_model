@@ -68,3 +68,12 @@ def test_load_model_settings_merges_common_defaults_and_model_overrides() -> Non
     assert settings["quantity_test"] == 3
     assert settings["sentiment_model"] == "gemma3:12b"
     assert settings["sentiment_output_pkl"] == "rts/gemma3_12b/sentiment_scores.pkl"
+
+
+def test_default_settings_match_approved_design() -> None:
+    settings = run_walk_forward.load_yaml(run_walk_forward.SETTINGS_PATH)
+
+    assert settings["backtest_start_date"] == "2025-04-01"
+    assert settings["train_months"] == 6
+    assert settings["save_daily_artifacts"] is False
+    assert settings["output_dir"] == "walk_forward/results"

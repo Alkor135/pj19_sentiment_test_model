@@ -231,6 +231,7 @@ backtest/
 group_stats/
 rules.yaml
 oos/results/
+walk_forward/results/
 beget/links.yaml
 buhinvest_analize/*.png
 trade/log/
