@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from datetime import date, timedelta
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -17,6 +19,14 @@ class WalkForwardDayResult:
     trade: dict[str, Any] | None
     grouped: pd.DataFrame | None
     rules: list[dict[str, Any]] | None
+
+
+@dataclass
+class WalkForwardModelResult:
+    daily_summaries: list[dict[str, Any]]
+    trades: pd.DataFrame
+    model_summary: dict[str, Any]
+    daily_artifacts: dict[date, WalkForwardDayResult]
 
 
 def training_window_for(test_date: date, train_months: int) -> tuple[date, date]:
@@ -203,6 +213,28 @@ def build_backtest(
     return result
 
 
+def render_rules_yaml(
+    rules: list[dict[str, Any]],
+    *,
+    ticker: str,
+    sentiment_model: str,
+    test_date: date,
+    train_start: date,
+    train_end: date,
+) -> str:
+    lines = [
+        (
+            f"rules:  # WF {ticker} {sentiment_model} "
+            f"test_date={test_date} train={train_start}..{train_end}"
+        )
+    ]
+    for rule in rules:
+        lines.append(
+            f"  - {{min: {rule['min']}, max: {rule['max']}, action: {rule['action']}}}"
+        )
+    return "\n".join(lines) + "\n"
+
+
 def _base_summary(
     *,
     ticker: str,
@@ -289,3 +321,144 @@ def run_walk_forward_day(
     summary["trades"] = 1
     summary["pnl"] = float(trade["pnl"])
     return WalkForwardDayResult(summary, trade, grouped, rules)
+
+
+def summarize_model(
+    *,
+    ticker: str,
+    model_dir: str,
+    sentiment_model: str,
+    daily_summaries: list[dict[str, Any]],
+    trades: pd.DataFrame,
+) -> dict[str, Any]:
+    ok_days = sum(1 for row in daily_summaries if row["status"] == "ok")
+    skipped_days = sum(1 for row in daily_summaries if row["status"] == "skipped")
+    error_days = sum(1 for row in daily_summaries if row["status"] == "error")
+    total_pnl = float(trades["pnl"].sum()) if not trades.empty else 0.0
+    winrate = float((trades["pnl"] > 0).mean() * 100) if not trades.empty else 0.0
+    max_drawdown = 0.0
+    if not trades.empty:
+        cum = trades["pnl"].cumsum()
+        max_drawdown = float((cum - cum.cummax()).min())
+    status = "ok" if error_days == 0 else "error"
+    return {
+        "ticker": ticker,
+        "model_dir": model_dir,
+        "sentiment_model": sentiment_model,
+        "status": status,
+        "days": len(daily_summaries),
+        "ok_days": ok_days,
+        "skipped_days": skipped_days,
+        "error_days": error_days,
+        "trades": int(len(trades)),
+        "total_pnl": total_pnl,
+        "winrate": winrate,
+        "max_drawdown": max_drawdown,
+    }
+
+
+def run_walk_forward_model(
+    *,
+    indexed: pd.DataFrame,
+    ticker: str,
+    model_dir: str,
+    sentiment_model: str,
+    quantity: int,
+    start_date: date,
+    end_date: date | None,
+    train_months: int,
+    min_train_rows: int,
+) -> WalkForwardModelResult:
+    daily_summaries: list[dict[str, Any]] = []
+    trade_rows: list[dict[str, Any]] = []
+    daily_artifacts: dict[date, WalkForwardDayResult] = {}
+
+    for test_date in iter_test_dates(indexed, start_date=start_date, end_date=end_date):
+        day = run_walk_forward_day(
+            indexed=indexed,
+            ticker=ticker,
+            model_dir=model_dir,
+            sentiment_model=sentiment_model,
+            quantity=quantity,
+            test_date=test_date,
+            train_months=train_months,
+            min_train_rows=min_train_rows,
+        )
+        daily_summaries.append(day.summary)
+        daily_artifacts[test_date] = day
+        if day.trade is not None:
+            row = dict(day.trade)
+            row["ticker"] = ticker
+            row["model_dir"] = model_dir
+            row["sentiment_model"] = sentiment_model
+            row["train_start"] = day.summary["train_start"]
+            row["train_end"] = day.summary["train_end"]
+            row["train_rows"] = day.summary["train_rows"]
+            trade_rows.append(row)
+
+    trades = pd.DataFrame(trade_rows)
+    if not trades.empty:
+        trades = trades.sort_values("source_date").reset_index(drop=True)
+        trades["cum_pnl"] = trades["pnl"].cumsum()
+
+    model_summary = summarize_model(
+        ticker=ticker,
+        model_dir=model_dir,
+        sentiment_model=sentiment_model,
+        daily_summaries=daily_summaries,
+        trades=trades,
+    )
+    return WalkForwardModelResult(daily_summaries, trades, model_summary, daily_artifacts)
+
+
+def _json_default(value: Any) -> str:
+    if isinstance(value, date):
+        return value.isoformat()
+    return str(value)
+
+
+def save_model_outputs(
+    *,
+    output_dir: Path,
+    ticker: str,
+    model_dir: str,
+    daily_summaries: list[dict[str, Any]],
+    trades: pd.DataFrame,
+    model_summary: dict[str, Any],
+    save_daily_artifacts: bool,
+    daily_artifacts: dict[date, WalkForwardDayResult],
+) -> None:
+    target = output_dir / ticker / model_dir
+    target.mkdir(parents=True, exist_ok=True)
+    trades.to_csv(target / "trades.csv", index=False, encoding="utf-8-sig")
+    trades.to_excel(target / "trades.xlsx", index=False)
+    (target / "summary.json").write_text(
+        json.dumps(model_summary, ensure_ascii=False, indent=2, default=_json_default),
+        encoding="utf-8",
+    )
+
+    if save_daily_artifacts:
+        for test_date, day in daily_artifacts.items():
+            if day.grouped is None or day.rules is None:
+                continue
+            daily_dir = target / "daily" / test_date.isoformat()
+            daily_dir.mkdir(parents=True, exist_ok=True)
+            day.grouped.to_excel(daily_dir / "group_stats.xlsx", index=False)
+            (daily_dir / "rules.yaml").write_text(
+                render_rules_yaml(
+                    day.rules,
+                    ticker=ticker,
+                    sentiment_model=str(model_summary["sentiment_model"]),
+                    test_date=test_date,
+                    train_start=day.summary["train_start"],
+                    train_end=day.summary["train_end"],
+                ),
+                encoding="utf-8",
+            )
+
+
+def save_global_summary(output_dir: Path, summaries: list[dict[str, Any]]) -> None:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    summary_df = pd.DataFrame(summaries)
+    summary_df.to_csv(output_dir / "summary.csv", index=False, encoding="utf-8-sig")
+    summary_df.to_excel(output_dir / "summary.xlsx", index=False)
