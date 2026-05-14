@@ -4,6 +4,8 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+from openpyxl import load_workbook
+from openpyxl.styles import Alignment, Font, PatternFill
 
 
 SUMMARY_COLUMNS = (
@@ -289,3 +291,140 @@ def build_monthly_matrix(trades: pd.DataFrame) -> pd.DataFrame:
 
 def build_daily_matrix(trades: pd.DataFrame) -> pd.DataFrame:
     return _build_period_matrix(trades, "day")
+
+
+def build_dashboard(
+    summary: pd.DataFrame,
+    trades: pd.DataFrame,
+    leaderboard: pd.DataFrame,
+    ticker_summary: pd.DataFrame,
+    errors: pd.DataFrame,
+) -> pd.DataFrame:
+    summary = normalize_summary(summary)
+    trades = normalize_trades(trades)
+    total_pnl = float(trades["pnl"].sum()) if not trades.empty else 0.0
+    best = leaderboard.iloc[0] if not leaderboard.empty else None
+    return pd.DataFrame(
+        [
+            {"Показатель": "Тикеров", "Значение": int(ticker_summary["ticker"].nunique()) if not ticker_summary.empty else 0},
+            {"Показатель": "Моделей", "Значение": int(leaderboard["model_dir"].nunique()) if not leaderboard.empty else 0},
+            {"Показатель": "Дней в summary", "Значение": int(summary["source_date"].nunique()) if not summary.empty else 0},
+            {"Показатель": "Сделок", "Значение": int(len(trades))},
+            {"Показатель": "Total P/L", "Значение": total_pnl},
+            {"Показатель": "Лучшая модель", "Значение": "" if best is None else f"{best['ticker']} / {best['model_dir']}"},
+            {"Показатель": "Ошибок", "Значение": int(len(errors))},
+        ]
+    )
+
+
+def _excel_safe(frame: pd.DataFrame) -> pd.DataFrame:
+    return frame.copy()
+
+
+def _sheet_name(value: str, used: set[str]) -> str:
+    base = "".join(ch for ch in value if ch not in r"[]:*?/\\")[:31] or "Sheet"
+    name = base
+    suffix = 2
+    while name in used:
+        tail = f"_{suffix}"
+        name = f"{base[:31 - len(tail)]}{tail}"
+        suffix += 1
+    used.add(name)
+    return name
+
+
+def write_excel_report(
+    *,
+    summary: pd.DataFrame,
+    trades: pd.DataFrame,
+    leaderboard: pd.DataFrame,
+    ticker_summary: pd.DataFrame,
+    monthly_matrix: pd.DataFrame,
+    daily_matrix: pd.DataFrame,
+    errors: pd.DataFrame,
+    output_xlsx: Path,
+) -> None:
+    output_xlsx.parent.mkdir(parents=True, exist_ok=True)
+    summary = normalize_summary(summary)
+    trades = normalize_trades(trades)
+    errors = errors.copy() if not errors.empty else _empty_errors()
+    dashboard = build_dashboard(summary, trades, leaderboard, ticker_summary, errors)
+    used_sheets = {
+        "Dashboard",
+        "Leaderboard",
+        "Ticker_Summary",
+        "Monthly_Matrix",
+        "Daily_Matrix",
+        "Raw_Summary",
+        "Raw_Trades",
+        "Errors",
+    }
+
+    with pd.ExcelWriter(output_xlsx, engine="openpyxl") as writer:
+        _excel_safe(dashboard).to_excel(writer, sheet_name="Dashboard", index=False, inf_rep="inf")
+        _excel_safe(leaderboard).to_excel(writer, sheet_name="Leaderboard", index=False, inf_rep="inf")
+        _excel_safe(ticker_summary).to_excel(writer, sheet_name="Ticker_Summary", index=False, inf_rep="inf")
+        _excel_safe(monthly_matrix).to_excel(writer, sheet_name="Monthly_Matrix", inf_rep="inf")
+        _excel_safe(daily_matrix).to_excel(writer, sheet_name="Daily_Matrix", inf_rep="inf")
+
+        tickers = sorted(
+            set(leaderboard["ticker"].dropna())
+            | set(ticker_summary["ticker"].dropna())
+            | set(trades["ticker"].dropna())
+        )
+        for ticker in tickers:
+            ticker_trades = trades[trades["ticker"] == ticker]
+            ticker_leaderboard = leaderboard[leaderboard["ticker"] == ticker]
+            sheet = _sheet_name(str(ticker), used_sheets)
+            if not ticker_trades.empty:
+                frame = ticker_trades
+            else:
+                frame = ticker_leaderboard
+            _excel_safe(frame).to_excel(writer, sheet_name=sheet, index=False, inf_rep="inf")
+
+        _excel_safe(summary).to_excel(writer, sheet_name="Raw_Summary", index=False, inf_rep="inf")
+        _excel_safe(trades).to_excel(writer, sheet_name="Raw_Trades", index=False, inf_rep="inf")
+        _excel_safe(errors).to_excel(writer, sheet_name="Errors", index=False, inf_rep="inf")
+
+    _style_workbook(output_xlsx)
+
+
+def _style_workbook(path: Path) -> None:
+    workbook = load_workbook(path)
+    header_fill = PatternFill("solid", fgColor="1F4E78")
+    header_font = Font(color="FFFFFF", bold=True)
+    positive_fill = PatternFill("solid", fgColor="E2F0D9")
+    negative_fill = PatternFill("solid", fgColor="FCE4D6")
+
+    for worksheet in workbook.worksheets:
+        worksheet.freeze_panes = "A2"
+        worksheet.sheet_view.showGridLines = False
+        if worksheet.max_row > 1 and worksheet.max_column > 0:
+            worksheet.auto_filter.ref = worksheet.dimensions
+
+        headers: dict[int, str] = {}
+        for cell in worksheet[1]:
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal="center")
+            headers[cell.column] = str(cell.value or "").lower()
+
+        for column_cells in worksheet.columns:
+            width = min(max(len(str(cell.value or "")) for cell in column_cells) + 2, 44)
+            worksheet.column_dimensions[column_cells[0].column_letter].width = max(width, 10)
+
+        for row in worksheet.iter_rows(min_row=2):
+            for cell in row:
+                header = headers.get(cell.column, "")
+                if isinstance(cell.value, (int, float)):
+                    if any(token in header for token in ("pnl", "p/l", "score", "drawdown", "profit", "avg", "best", "worst")):
+                        cell.number_format = "#,##0.00"
+                    if any(token in header for token in ("winrate", "rate")):
+                        cell.number_format = "0.00"
+                    if any(token in header for token in ("pnl", "p/l", "score")):
+                        if cell.value > 0:
+                            cell.fill = positive_fill
+                        elif cell.value < 0:
+                            cell.fill = negative_fill
+
+    workbook.save(path)

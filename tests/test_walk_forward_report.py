@@ -2,6 +2,7 @@ from datetime import date
 from pathlib import Path
 
 import pandas as pd
+from openpyxl import load_workbook
 
 from walk_forward import report
 
@@ -164,3 +165,37 @@ def test_load_all_trades_records_missing_trade_file(tmp_path: Path) -> None:
     assert len(trades) == 1
     assert errors.iloc[0]["model_dir"] == "missing"
     assert "trades.csv" in errors.iloc[0]["error"]
+
+
+def test_write_excel_report_creates_expected_sheets(tmp_path: Path) -> None:
+    output_xlsx = tmp_path / "walk_forward_report.xlsx"
+    summary = _sample_summary()
+    trades = _sample_trades()
+    leaderboard = report.build_leaderboard(summary, trades)
+    ticker_summary = report.build_ticker_summary(leaderboard)
+    monthly = report.build_monthly_matrix(trades)
+    daily = report.build_daily_matrix(trades)
+
+    report.write_excel_report(
+        summary=summary,
+        trades=trades,
+        leaderboard=leaderboard,
+        ticker_summary=ticker_summary,
+        monthly_matrix=monthly,
+        daily_matrix=daily,
+        errors=pd.DataFrame(),
+        output_xlsx=output_xlsx,
+    )
+
+    workbook = load_workbook(output_xlsx, read_only=True)
+    assert workbook.sheetnames == [
+        "Dashboard",
+        "Leaderboard",
+        "Ticker_Summary",
+        "Monthly_Matrix",
+        "Daily_Matrix",
+        "RTS",
+        "Raw_Summary",
+        "Raw_Trades",
+        "Errors",
+    ]
