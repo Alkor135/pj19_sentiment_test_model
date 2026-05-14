@@ -1,33 +1,33 @@
-# Walk-Forward Backtest Design
+# Дизайн Walk-Forward Бэктеста
 
-## Goal
+## Цель
 
-Add a daily walk-forward backtest that compares existing ticker/model sentiment signals without changing working model scripts or overwriting their artifacts.
+Добавить дневной walk-forward бэктест для сравнения уже рассчитанных sentiment-сигналов по тикерам и моделям, не меняя рабочие модельные скрипты и не перезаписывая их артефакты.
 
-The new workflow must read existing `sentiment_scores.pkl` files and write every generated artifact under `walk_forward/results/`.
+Новый пайплайн должен читать существующие файлы `sentiment_scores.pkl` и записывать все создаваемые артефакты только в `walk_forward/results/`.
 
-## Scope
+## Область Работ
 
-Included:
+Входит в задачу:
 
-- New isolated `walk_forward/` package.
-- Daily rolling walk-forward evaluation.
-- Configuration in `walk_forward/settings.yaml`.
-- CLI runner for selected tickers and models.
-- Summary and per-model trade outputs.
-- Optional diagnostic daily artifacts controlled by config.
-- Tests for date windows, isolation, rule generation, and result output.
+- Новый изолированный пакет `walk_forward/`.
+- Дневная rolling walk-forward проверка.
+- Конфигурация в `walk_forward/settings.yaml`.
+- CLI-запуск для выбранных тикеров и моделей.
+- Сводные результаты и отдельные trade-файлы по моделям.
+- Опциональные дневные диагностические артефакты, управляемые настройкой.
+- Тесты окон дат, изоляции, генерации правил и записи результатов.
 
-Excluded:
+Не входит в задачу:
 
-- Running Ollama sentiment analysis.
-- Modifying ticker/model `run_report.py`, `rules_recommendation.py`, `sentiment_backtest.py`, or generated artifacts in model folders.
-- Writing predictions for live trading.
-- Changing the existing `oos/` methodology.
+- Запуск Ollama sentiment analysis.
+- Изменение тикерных/модельных `run_report.py`, `rules_recommendation.py`, `sentiment_backtest.py` или созданных артефактов в модельных папках.
+- Запись прогнозов для live-торговли.
+- Изменение существующей методологии `oos/`.
 
-## Configuration
+## Конфигурация
 
-Default `walk_forward/settings.yaml`:
+Настройки по умолчанию в `walk_forward/settings.yaml`:
 
 ```yaml
 tickers: [rts, mix, ng, si, spyf]
@@ -41,16 +41,16 @@ min_train_rows: 20
 keep_going: true
 ```
 
-Rules:
+Правила интерпретации:
 
-- `models: []` means discover all models from each ticker's `settings.yaml`.
-- `backtest_end_date: null` means use the last available date in the loaded sentiment PKL.
-- `train_months` defines the rolling training lookback for each tested day.
-- `save_daily_artifacts: false` keeps output compact by default.
+- `models: []` означает автоматическое обнаружение всех моделей из `settings.yaml` каждого тикера.
+- `backtest_end_date: null` означает использование последней доступной даты из загруженного sentiment PKL.
+- `train_months` задаёт rolling-окно обучения для каждого тестируемого дня.
+- `save_daily_artifacts: false` по умолчанию оставляет результаты компактными.
 
-## Architecture
+## Архитектура
 
-Create these files:
+Создать следующие файлы:
 
 - `walk_forward/__init__.py`
 - `walk_forward/settings.yaml`
@@ -58,45 +58,45 @@ Create these files:
 - `walk_forward/run_walk_forward.py`
 - `walk_forward/README.md`
 
-Optional follow-up:
+Опциональное развитие после стабилизации базового runner:
 
-- `walk_forward/report.py` for an HTML/XLSX dashboard after the core runner is stable.
+- `walk_forward/report.py` для HTML/XLSX dashboard.
 
-The implementation should reuse or mirror pure logic from `oos/core.py` where appropriate:
+Реализация должна переиспользовать или повторить чистую логику из `oos/core.py`, где это уместно:
 
-- sentiment PKL normalization;
-- follow-trade grouping by sentiment;
-- rule recommendation;
-- rule matching;
-- backtest row construction.
+- нормализация sentiment PKL;
+- группировка follow-сделок по sentiment;
+- рекомендация правил;
+- подбор правила под значение sentiment;
+- построение строк бэктеста.
 
-The new package should not import or execute model-folder scripts because those scripts write into working artifact directories.
+Новый пакет не должен импортировать или запускать скрипты из модельных папок, потому что эти скрипты пишут в рабочие директории артефактов.
 
-## Algorithm
+## Алгоритм
 
-For each selected `ticker/model`:
+Для каждой выбранной пары `ticker/model`:
 
-1. Load ticker/model settings using the same merge behavior as the current OOS runner.
-2. Resolve and read `sentiment_output_pkl`.
-3. Normalize to a date-indexed frame with `sentiment` and `next_body`.
-4. Build the list of test dates from `backtest_start_date` through `backtest_end_date` or the last available PKL date.
-5. For each test date `D`:
-   - training start = `D - train_months`;
-   - training end = `D - 1 day`;
-   - training frame = rows from training start through training end;
-   - test frame = row for `D`;
-   - skip or record an error if training rows are below `min_train_rows`;
-   - build group stats from training frame;
-   - build rules from group stats;
-   - apply rules to the single test day;
-   - append the resulting trade or skip status to the per-model result.
-6. Save per-model trades and a global summary.
+1. Загрузить настройки тикера/модели с тем же поведением merge, что и в текущем OOS runner.
+2. Разрешить путь и прочитать `sentiment_output_pkl`.
+3. Нормализовать данные в date-indexed frame с колонками `sentiment` и `next_body`.
+4. Построить список тестовых дат от `backtest_start_date` до `backtest_end_date` или последней доступной даты в PKL.
+5. Для каждой тестовой даты `D`:
+   - начало обучения = `D - train_months`;
+   - конец обучения = `D - 1 день`;
+   - training frame = строки от начала обучения до конца обучения;
+   - test frame = строка за дату `D`;
+   - пропустить дату или записать ошибку, если строк обучения меньше `min_train_rows`;
+   - построить group stats по training frame;
+   - построить rules по group stats;
+   - применить rules к одному тестовому дню;
+   - добавить полученную сделку или статус skip в результат модели.
+6. Сохранить сделки по модели и общую сводку.
 
-The training window must never include the test day or any later date.
+Окно обучения никогда не должно включать тестовый день или любую более позднюю дату.
 
-## Output Layout
+## Структура Вывода
 
-Always write:
+Всегда записывать:
 
 ```text
 walk_forward/results/summary.csv
@@ -106,60 +106,60 @@ walk_forward/results/<TICKER>/<model>/trades.csv
 walk_forward/results/<TICKER>/<model>/summary.json
 ```
 
-When `save_daily_artifacts: true`, additionally write:
+Если `save_daily_artifacts: true`, дополнительно записывать:
 
 ```text
 walk_forward/results/<TICKER>/<model>/daily/YYYY-MM-DD/group_stats.xlsx
 walk_forward/results/<TICKER>/<model>/daily/YYYY-MM-DD/rules.yaml
 ```
 
-No files should be written to `<ticker>/<model>/`, `backtest/`, `group_stats/`, `plots/`, or existing `oos/results/`.
+Файлы не должны записываться в `<ticker>/<model>/`, `backtest/`, `group_stats/`, `plots/` или существующий `oos/results/`.
 
 ## CLI
 
-Primary command:
+Основная команда:
 
 ```powershell
 .venv\Scripts\python.exe -m walk_forward.run_walk_forward
 ```
 
-Useful overrides:
+Полезные переопределения:
 
 ```powershell
 .venv\Scripts\python.exe -m walk_forward.run_walk_forward --tickers rts --models gemma3_12b --start-date 2025-04-01 --train-months 6
 ```
 
-CLI options should override `walk_forward/settings.yaml`.
+CLI-опции должны иметь приоритет над `walk_forward/settings.yaml`.
 
-## Error Handling
+## Обработка Ошибок
 
-With `keep_going: true`, errors for a single ticker/model/date are recorded in summary output and the runner continues.
+При `keep_going: true` ошибки отдельного тикера/модели/даты записываются в summary, а runner продолжает работу.
 
-Expected recoverable errors:
+Ожидаемые восстанавливаемые ошибки:
 
-- missing PKL;
-- no test row for a date;
-- insufficient training rows;
-- all training `total_pnl` values are zero and rules cannot be inferred;
-- generated rules produce no trade for the test date.
+- отсутствует PKL;
+- нет тестовой строки за дату;
+- недостаточно строк обучения;
+- все обучающие значения `total_pnl` равны нулю, и правила нельзя вывести;
+- построенные правила не дают сделки на тестовую дату.
 
-With `keep_going: false`, the first error exits with a non-zero status.
+При `keep_going: false` первая ошибка завершает процесс с ненулевым кодом.
 
-## Tests
+## Тесты
 
-Add focused tests under `tests/`:
+Добавить сфокусированные тесты в `tests/`:
 
-- training window excludes test day and future dates;
-- `train_months: 6` selects the correct rolling lookback;
-- result writing stays inside a provided temporary output directory;
-- `save_daily_artifacts: false` does not create daily rules or group stats;
-- CLI/settings merge respects overrides;
-- summary rows distinguish ok, skipped, and error statuses.
+- окно обучения исключает тестовый день и будущие даты;
+- `train_months: 6` выбирает корректное rolling-окно;
+- запись результатов остаётся внутри переданной временной output-директории;
+- `save_daily_artifacts: false` не создаёт дневные rules или group stats;
+- merge CLI/settings учитывает переопределения;
+- строки summary различают статусы ok, skipped и error.
 
-## Acceptance Criteria
+## Критерии Приёмки
 
-- Running the walk-forward CLI does not modify existing model folders.
-- Default config uses `backtest_start_date: "2025-04-01"`, `train_months: 6`, and `save_daily_artifacts: false`.
-- For each tested day, rules are generated only from data before that day.
-- Summary and per-model outputs are written only under `walk_forward/results/`.
-- Tests cover the rolling-window behavior and artifact isolation.
+- Запуск walk-forward CLI не изменяет существующие модельные папки.
+- Конфиг по умолчанию использует `backtest_start_date: "2025-04-01"`, `train_months: 6` и `save_daily_artifacts: false`.
+- Для каждого тестируемого дня rules строятся только по данным до этого дня.
+- Summary и результаты по моделям записываются только в `walk_forward/results/`.
+- Тесты покрывают rolling-window поведение и изоляцию артефактов.
