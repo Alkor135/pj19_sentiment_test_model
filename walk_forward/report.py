@@ -1,13 +1,21 @@
 from __future__ import annotations
 
+from html import escape
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
+import plotly.graph_objects as go
+import plotly.io as pio
+import typer
 from openpyxl import load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 
 
+DEFAULT_RESULTS_DIR = Path(__file__).resolve().parent / "results"
+DEFAULT_SUMMARY_CSV = DEFAULT_RESULTS_DIR / "summary.csv"
+DEFAULT_OUTPUT_HTML = DEFAULT_RESULTS_DIR / "walk_forward_report.html"
+DEFAULT_OUTPUT_XLSX = DEFAULT_RESULTS_DIR / "walk_forward_report.xlsx"
 SUMMARY_COLUMNS = (
     "status",
     "ticker",
@@ -30,6 +38,8 @@ TRADE_COLUMNS = (
     "sentiment",
 )
 GROUP_KEYS = ["ticker", "model_dir", "sentiment_model"]
+
+app = typer.Typer(help="Собрать Excel и HTML отчёты walk-forward бэктеста.")
 
 
 def normalize_summary(summary: pd.DataFrame) -> pd.DataFrame:
@@ -428,3 +438,318 @@ def _style_workbook(path: Path) -> None:
                             cell.fill = negative_fill
 
     workbook.save(path)
+
+
+def _table_html(frame: pd.DataFrame, max_rows: int = 50, index: bool = False) -> str:
+    if frame.empty:
+        return '<p class="muted">Нет данных</p>'
+    visible = frame.head(max_rows).copy()
+    return visible.to_html(index=index, classes="data-table", border=0, escape=True)
+
+
+def _kpi_html(label: str, value: Any) -> str:
+    return f'<div class="kpi"><span>{escape(label)}</span><strong>{escape(str(value))}</strong></div>'
+
+
+def _format_float(value: Any) -> str:
+    if isinstance(value, (int, float)):
+        if value == float("inf"):
+            return "inf"
+        if value == float("-inf"):
+            return "-inf"
+        return f"{value:,.2f}"
+    return str(value)
+
+
+def _plot_div(fig: go.Figure, *, include_plotlyjs: bool) -> str:
+    return pio.to_html(
+        fig,
+        full_html=False,
+        include_plotlyjs=include_plotlyjs,
+        config={"displayModeBar": False, "responsive": True},
+    )
+
+
+def _overall_daily_pnl(trades: pd.DataFrame) -> pd.Series:
+    trades = normalize_trades(trades)
+    if trades.empty:
+        return pd.Series(dtype=float)
+    return trades.groupby("source_date")["pnl"].sum().sort_index()
+
+
+def _equity_figure(trades: pd.DataFrame) -> go.Figure:
+    daily = _overall_daily_pnl(trades)
+    fig = go.Figure()
+    if not daily.empty:
+        fig.add_trace(
+            go.Scatter(
+                x=[str(item) for item in daily.index],
+                y=daily.cumsum(),
+                mode="lines",
+                name="Equity",
+                line={"color": "#2563eb", "width": 2},
+            )
+        )
+    fig.update_layout(title="Equity Curve", template="plotly_white", height=360, margin={"l": 40, "r": 20, "t": 55, "b": 40})
+    return fig
+
+
+def _drawdown_figure(trades: pd.DataFrame) -> go.Figure:
+    daily = _overall_daily_pnl(trades)
+    fig = go.Figure()
+    if not daily.empty:
+        cum = daily.cumsum()
+        drawdown = cum - cum.cummax()
+        fig.add_trace(
+            go.Scatter(
+                x=[str(item) for item in drawdown.index],
+                y=drawdown,
+                fill="tozeroy",
+                mode="lines",
+                name="Drawdown",
+                line={"color": "#dc2626", "width": 2},
+            )
+        )
+    fig.update_layout(title="Drawdown", template="plotly_white", height=320, margin={"l": 40, "r": 20, "t": 55, "b": 40})
+    return fig
+
+
+def _daily_bar_figure(trades: pd.DataFrame) -> go.Figure:
+    daily = _overall_daily_pnl(trades)
+    fig = go.Figure()
+    if not daily.empty:
+        colors = ["#16a34a" if value >= 0 else "#dc2626" for value in daily]
+        fig.add_trace(go.Bar(x=[str(item) for item in daily.index], y=daily, marker={"color": colors}, name="Daily P/L"))
+    fig.update_layout(title="Daily P/L", template="plotly_white", height=320, margin={"l": 40, "r": 20, "t": 55, "b": 40})
+    return fig
+
+
+def _monthly_heatmap_figure(monthly_matrix: pd.DataFrame) -> go.Figure:
+    fig = go.Figure()
+    if not monthly_matrix.empty:
+        fig.add_trace(
+            go.Heatmap(
+                z=monthly_matrix.values,
+                x=list(monthly_matrix.columns),
+                y=list(monthly_matrix.index),
+                colorscale="RdYlGn",
+                zmid=0,
+                colorbar={"title": "P/L"},
+            )
+        )
+    fig.update_layout(title="Monthly Matrix", template="plotly_white", height=420, margin={"l": 120, "r": 20, "t": 55, "b": 50})
+    return fig
+
+
+def _ticker_equity_figure(ticker: str, trades: pd.DataFrame, leaderboard: pd.DataFrame) -> go.Figure:
+    fig = go.Figure()
+    top_models = leaderboard[(leaderboard["ticker"] == ticker) & (leaderboard["rank"] <= 5)]["model_dir"].tolist()
+    ticker_trades = normalize_trades(trades)
+    for model_dir in top_models:
+        model_trades = ticker_trades[
+            (ticker_trades["ticker"] == ticker)
+            & (ticker_trades["model_dir"] == model_dir)
+        ]
+        if model_trades.empty:
+            continue
+        daily = model_trades.groupby("source_date")["pnl"].sum().sort_index()
+        fig.add_trace(
+            go.Scatter(
+                x=[str(item) for item in daily.index],
+                y=daily.cumsum(),
+                mode="lines",
+                name=model_dir,
+            )
+        )
+    fig.update_layout(
+        title=f"{ticker}: equity top-5 моделей",
+        template="plotly_white",
+        height=320,
+        margin={"l": 40, "r": 20, "t": 55, "b": 40},
+    )
+    return fig
+
+
+def build_html(
+    *,
+    summary: pd.DataFrame,
+    trades: pd.DataFrame,
+    leaderboard: pd.DataFrame,
+    ticker_summary: pd.DataFrame,
+    monthly_matrix: pd.DataFrame,
+    daily_matrix: pd.DataFrame,
+    errors: pd.DataFrame,
+) -> str:
+    summary = normalize_summary(summary)
+    trades = normalize_trades(trades)
+    total_pnl = float(trades["pnl"].sum()) if not trades.empty else 0.0
+    max_drawdown = float(leaderboard["max_drawdown"].min()) if not leaderboard.empty else 0.0
+    best_model = ""
+    if not leaderboard.empty:
+        best = leaderboard.iloc[0]
+        best_model = f"{best['ticker']} / {best['model_dir']}"
+
+    chart_parts: list[str] = [
+        _plot_div(_equity_figure(trades), include_plotlyjs=True),
+        _plot_div(_drawdown_figure(trades), include_plotlyjs=False),
+        _plot_div(_daily_bar_figure(trades), include_plotlyjs=False),
+        _plot_div(_monthly_heatmap_figure(monthly_matrix), include_plotlyjs=False),
+    ]
+
+    ticker_sections: list[str] = []
+    for ticker in sorted(leaderboard["ticker"].unique()) if not leaderboard.empty else []:
+        ticker_leaderboard = leaderboard[leaderboard["ticker"] == ticker].sort_values("rank")
+        ticker_sections.append(
+            f"""
+            <section>
+              <h2>{escape(str(ticker))}</h2>
+              {_plot_div(_ticker_equity_figure(str(ticker), trades, leaderboard), include_plotlyjs=False)}
+              {_table_html(ticker_leaderboard, max_rows=30)}
+            </section>
+            """
+        )
+
+    return f"""<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Walk-Forward Dashboard</title>
+  <style>
+    :root {{
+      color-scheme: light;
+      font-family: "Segoe UI", Arial, sans-serif;
+      color: #172033;
+      background: #f6f7f9;
+    }}
+    body {{ margin: 0; }}
+    main {{ max-width: 1280px; margin: 0 auto; padding: 28px; }}
+    h1 {{ font-size: 34px; margin: 0 0 18px; letter-spacing: 0; }}
+    h2 {{ font-size: 22px; margin: 32px 0 14px; letter-spacing: 0; }}
+    .kpis {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }}
+    .kpi {{ background: #ffffff; border: 1px solid #dde2ea; border-radius: 8px; padding: 14px 16px; }}
+    .kpi span {{ display: block; color: #647084; font-size: 13px; margin-bottom: 8px; }}
+    .kpi strong {{ display: block; font-size: 20px; overflow-wrap: anywhere; }}
+    section {{ margin-top: 22px; }}
+    .panel {{ background: #ffffff; border: 1px solid #dde2ea; border-radius: 8px; padding: 16px; margin-top: 12px; overflow-x: auto; }}
+    .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 14px; }}
+    .data-table {{ width: 100%; border-collapse: collapse; font-size: 13px; }}
+    .data-table th {{ text-align: left; background: #22324a; color: #ffffff; padding: 8px; white-space: nowrap; }}
+    .data-table td {{ border-bottom: 1px solid #e6e9ef; padding: 7px 8px; white-space: nowrap; }}
+    .muted {{ color: #647084; }}
+  </style>
+</head>
+<body>
+<main>
+  <h1>Walk-Forward Dashboard</h1>
+  <div class="kpis">
+    {_kpi_html("Total P/L", _format_float(total_pnl))}
+    {_kpi_html("Сделок", len(trades))}
+    {_kpi_html("Моделей", leaderboard["model_dir"].nunique() if not leaderboard.empty else 0)}
+    {_kpi_html("Max drawdown", _format_float(max_drawdown))}
+    {_kpi_html("Лучшая модель", best_model)}
+    {_kpi_html("Ошибок", len(errors))}
+  </div>
+
+  <section>
+    <h2>Графики</h2>
+    <div class="grid">
+      {"".join(f'<div class="panel">{part}</div>' for part in chart_parts)}
+    </div>
+  </section>
+
+  <section>
+    <h2>Лучшие модели по тикерам</h2>
+    <div class="panel">{_table_html(ticker_summary, max_rows=50)}</div>
+    <div class="panel">{_table_html(leaderboard, max_rows=100)}</div>
+  </section>
+
+  {"".join(ticker_sections)}
+
+  <section>
+    <h2>Ошибки и пропуски</h2>
+    <div class="panel">{_table_html(errors, max_rows=100)}</div>
+  </section>
+</main>
+</body>
+</html>
+"""
+
+
+def _summary_error_rows(summary: pd.DataFrame) -> pd.DataFrame:
+    summary = normalize_summary(summary)
+    errors = summary[summary["status"] != "ok"].copy()
+    if errors.empty:
+        return _empty_errors()
+    errors["error"] = errors.apply(
+        lambda row: row["error"] or row["skip_reason"] or row["status"],
+        axis=1,
+    )
+    return errors[["ticker", "model_dir", "sentiment_model", "status", "error"]]
+
+
+def build_report(
+    *,
+    summary_csv: Path = DEFAULT_SUMMARY_CSV,
+    results_dir: Path = DEFAULT_RESULTS_DIR,
+    output_html: Path = DEFAULT_OUTPUT_HTML,
+    output_xlsx: Path = DEFAULT_OUTPUT_XLSX,
+) -> tuple[Path, Path]:
+    if not summary_csv.exists():
+        raise FileNotFoundError(f"summary.csv не найден: {summary_csv}")
+
+    summary = pd.read_csv(summary_csv, encoding="utf-8-sig")
+    trades, load_errors = load_all_trades(results_dir, summary)
+    summary = normalize_summary(summary)
+    errors = pd.concat([_summary_error_rows(summary), load_errors], ignore_index=True)
+    leaderboard = build_leaderboard(summary, trades)
+    ticker_summary = build_ticker_summary(leaderboard)
+    monthly_matrix = build_monthly_matrix(trades)
+    daily_matrix = build_daily_matrix(trades)
+
+    write_excel_report(
+        summary=summary,
+        trades=trades,
+        leaderboard=leaderboard,
+        ticker_summary=ticker_summary,
+        monthly_matrix=monthly_matrix,
+        daily_matrix=daily_matrix,
+        errors=errors,
+        output_xlsx=output_xlsx,
+    )
+
+    output_html.parent.mkdir(parents=True, exist_ok=True)
+    output_html.write_text(
+        build_html(
+            summary=summary,
+            trades=trades,
+            leaderboard=leaderboard,
+            ticker_summary=ticker_summary,
+            monthly_matrix=monthly_matrix,
+            daily_matrix=daily_matrix,
+            errors=errors,
+        ),
+        encoding="utf-8",
+    )
+    return output_html, output_xlsx
+
+
+@app.command()
+def main(
+    summary_csv: Path = typer.Option(DEFAULT_SUMMARY_CSV, "--summary-csv", help="Путь к summary.csv."),
+    results_dir: Path = typer.Option(DEFAULT_RESULTS_DIR, "--results-dir", help="Папка результатов walk-forward."),
+    output_html: Path = typer.Option(DEFAULT_OUTPUT_HTML, "--output-html", help="HTML отчёт."),
+    output_xlsx: Path = typer.Option(DEFAULT_OUTPUT_XLSX, "--output-xlsx", help="Excel отчёт."),
+) -> None:
+    html_path, xlsx_path = build_report(
+        summary_csv=summary_csv,
+        results_dir=results_dir,
+        output_html=output_html,
+        output_xlsx=output_xlsx,
+    )
+    typer.echo(f"HTML отчёт: {html_path}")
+    typer.echo(f"Excel отчёт: {xlsx_path}")
+
+
+if __name__ == "__main__":
+    app()

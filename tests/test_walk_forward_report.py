@@ -199,3 +199,28 @@ def test_write_excel_report_creates_expected_sheets(tmp_path: Path) -> None:
         "Raw_Trades",
         "Errors",
     ]
+
+
+def test_build_report_writes_html_and_excel(tmp_path: Path) -> None:
+    results_dir = tmp_path / "results"
+    model_dir = results_dir / "RTS" / "model_a"
+    model_dir.mkdir(parents=True)
+    summary_csv = results_dir / "summary.csv"
+    output_html = results_dir / "walk_forward_report.html"
+    output_xlsx = results_dir / "walk_forward_report.xlsx"
+
+    _sample_summary().to_csv(summary_csv, index=False, encoding="utf-8-sig")
+    _sample_trades().to_csv(model_dir / "trades.csv", index=False, encoding="utf-8-sig")
+
+    report.build_report(
+        summary_csv=summary_csv,
+        results_dir=results_dir,
+        output_html=output_html,
+        output_xlsx=output_xlsx,
+    )
+
+    html = output_html.read_text(encoding="utf-8")
+    assert "Walk-Forward Dashboard" in html
+    assert "Лучшие модели по тикерам" in html
+    assert "RTS" in html
+    assert output_xlsx.exists()
