@@ -194,3 +194,98 @@ def build_ticker_summary(leaderboard: pd.DataFrame) -> pd.DataFrame:
             }
         )
     return pd.DataFrame(rows)
+
+
+def _empty_errors() -> pd.DataFrame:
+    return pd.DataFrame(columns=["ticker", "model_dir", "sentiment_model", "status", "error"])
+
+
+def _resolve_ticker_dir(results_dir: Path, ticker: str) -> Path:
+    direct = results_dir / ticker
+    if direct.exists():
+        return direct
+
+    ticker_lc = ticker.lower()
+    if results_dir.exists():
+        for child in results_dir.iterdir():
+            if child.is_dir() and child.name.lower() == ticker_lc:
+                return child
+    return direct
+
+
+def load_all_trades(results_dir: Path, summary: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    summary = normalize_summary(summary)
+    ok_summary = summary[summary["status"] == "ok"]
+    frames: list[pd.DataFrame] = []
+    errors: list[dict[str, str]] = []
+
+    for item in ok_summary[GROUP_KEYS].drop_duplicates().to_dict("records"):
+        ticker = str(item["ticker"])
+        model_dir = str(item["model_dir"])
+        sentiment_model = str(item["sentiment_model"])
+        trades_path = _resolve_ticker_dir(results_dir, ticker) / model_dir / "trades.csv"
+
+        if not trades_path.exists():
+            errors.append(
+                {
+                    "ticker": ticker,
+                    "model_dir": model_dir,
+                    "sentiment_model": sentiment_model,
+                    "status": "error",
+                    "error": f"Не найден файл trades.csv: {trades_path}",
+                }
+            )
+            continue
+
+        try:
+            frame = pd.read_csv(trades_path, encoding="utf-8-sig")
+        except Exception as exc:
+            errors.append(
+                {
+                    "ticker": ticker,
+                    "model_dir": model_dir,
+                    "sentiment_model": sentiment_model,
+                    "status": "error",
+                    "error": f"Не удалось прочитать trades.csv: {exc}",
+                }
+            )
+            continue
+
+        frame["ticker"] = ticker
+        frame["model_dir"] = model_dir
+        frame["sentiment_model"] = sentiment_model
+        frames.append(frame)
+
+    trades = normalize_trades(pd.concat(frames, ignore_index=True)) if frames else normalize_trades(pd.DataFrame())
+    error_frame = pd.DataFrame(errors) if errors else _empty_errors()
+    return trades, error_frame
+
+
+def _build_period_matrix(trades: pd.DataFrame, period_column: str) -> pd.DataFrame:
+    trades = normalize_trades(trades)
+    if trades.empty:
+        return pd.DataFrame()
+
+    result = trades.copy()
+    result["series"] = result["ticker"] + " / " + result["model_dir"]
+    if period_column == "month":
+        result["period"] = pd.to_datetime(result["source_date"]).dt.to_period("M").astype(str)
+    else:
+        result["period"] = pd.to_datetime(result["source_date"]).dt.strftime("%Y-%m-%d")
+
+    matrix = result.pivot_table(
+        index="series",
+        columns="period",
+        values="pnl",
+        aggfunc="sum",
+        fill_value=0.0,
+    )
+    return matrix.sort_index().sort_index(axis=1)
+
+
+def build_monthly_matrix(trades: pd.DataFrame) -> pd.DataFrame:
+    return _build_period_matrix(trades, "month")
+
+
+def build_daily_matrix(trades: pd.DataFrame) -> pd.DataFrame:
+    return _build_period_matrix(trades, "day")

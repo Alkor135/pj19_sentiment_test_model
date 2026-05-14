@@ -1,4 +1,5 @@
 from datetime import date
+from pathlib import Path
 
 import pandas as pd
 
@@ -123,3 +124,43 @@ def test_build_ticker_summary_selects_best_model() -> None:
     assert row["models"] == 2
     assert row["best_model"] == "model_b"
     assert row["total_pnl"] == 31.0
+
+
+def test_build_monthly_and_daily_matrices() -> None:
+    trades = _sample_trades()
+
+    monthly = report.build_monthly_matrix(trades)
+    daily = report.build_daily_matrix(trades)
+
+    assert monthly.loc["RTS / model_a", "2026-04"] == 6.0
+    assert monthly.loc["RTS / model_b", "2026-04"] == 25.0
+    assert daily.loc["RTS / model_a", "2026-04-01"] == 10.0
+    assert daily.loc["RTS / model_a", "2026-04-02"] == -4.0
+
+
+def test_load_all_trades_records_missing_trade_file(tmp_path: Path) -> None:
+    model_dir = tmp_path / "RTS" / "model_a"
+    model_dir.mkdir(parents=True)
+    pd.DataFrame(
+        [
+            {
+                "ticker": "RTS",
+                "model_dir": "model_a",
+                "sentiment_model": "model:a",
+                "source_date": "2026-04-01",
+                "pnl": 1,
+            }
+        ]
+    ).to_csv(model_dir / "trades.csv", index=False)
+    summary = pd.DataFrame(
+        [
+            {"ticker": "RTS", "model_dir": "model_a", "sentiment_model": "model:a", "status": "ok"},
+            {"ticker": "RTS", "model_dir": "missing", "sentiment_model": "missing", "status": "ok"},
+        ]
+    )
+
+    trades, errors = report.load_all_trades(tmp_path, summary)
+
+    assert len(trades) == 1
+    assert errors.iloc[0]["model_dir"] == "missing"
+    assert "trades.csv" in errors.iloc[0]["error"]
