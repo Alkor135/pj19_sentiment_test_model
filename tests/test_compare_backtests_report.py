@@ -65,6 +65,47 @@ class CompareBacktestsReportTest(unittest.TestCase):
         self.assertEqual(comparison.metrics["delta_pnl"], -10.0)
         self.assertEqual(comparison.metrics["signal_match_rate"], 50.0)
 
+    def test_build_report_writes_html_with_metrics_and_errors(self) -> None:
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            walk_results = tmp_path / "walk_forward" / "results"
+            walk_model = walk_results / "RTS" / "model_a"
+            walk_model.mkdir(parents=True)
+            ordinary_model = tmp_path / "rts" / "model_a" / "backtest"
+            ordinary_model.mkdir(parents=True)
+
+            _ordinary_frame().to_excel(ordinary_model / "sentiment_backtest_results.xlsx", index=False)
+            _walk_frame().to_excel(walk_model / "trades.xlsx", index=False)
+
+            missing_model = walk_results / "RTS" / "missing_model"
+            missing_model.mkdir(parents=True)
+            _walk_frame().to_excel(missing_model / "trades.xlsx", index=False)
+
+            missing_walk_model = walk_results / "RTS" / "missing_walk"
+            missing_walk_model.mkdir(parents=True)
+            missing_walk_backtest = tmp_path / "rts" / "missing_walk" / "backtest"
+            missing_walk_backtest.mkdir(parents=True)
+            _ordinary_frame().to_excel(missing_walk_backtest / "sentiment_backtest_results.xlsx", index=False)
+
+            output_html = tmp_path / "compare.html"
+
+            build_report.build_report(
+                root=tmp_path,
+                walk_results_dir=walk_results,
+                output_html=output_html,
+                tickers=["rts"],
+                models=None,
+            )
+
+            html = output_html.read_text(encoding="utf-8")
+            self.assertIn("Сравнение Backtest и Walk-Forward", html)
+            self.assertIn("RTS / model_a", html)
+            self.assertIn("Delta P/L", html)
+            self.assertIn("missing_model", html)
+            self.assertIn("Не найден ordinary backtest", html)
+            self.assertIn("missing_walk", html)
+            self.assertIn("Не найден walk-forward trades", html)
+
 
 def _ordinary_frame() -> pd.DataFrame:
     return pd.DataFrame(
