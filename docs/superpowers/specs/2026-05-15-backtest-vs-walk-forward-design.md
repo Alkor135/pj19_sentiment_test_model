@@ -1,24 +1,24 @@
-# Backtest vs Walk-Forward Comparison Report
+# Отчет сравнения Backtest и Walk-Forward
 
-## Goal
+## Цель
 
-Build a separate report that compares ordinary model backtest results from ticker folders with walk-forward results from `walk_forward/results`.
+Создать отдельный отчет, который сравнивает обычные результаты модельного backtest из папок тикеров с результатами walk-forward из `walk_forward/results`.
 
-The report must make the equity curves comparable by using only dates that exist in both sources for each ticker/model pair. This avoids showing a walk-forward curve that starts later against a longer ordinary backtest curve.
+Отчет должен делать equity-кривые сопоставимыми: для каждой пары тикер/модель использовать только даты, которые есть в обоих источниках. Так мы не будем сравнивать walk-forward-кривую, стартующую позже, с более длинной обычной backtest-кривой.
 
-## Sources
+## Источники
 
-Ordinary backtest source:
+Источник обычного backtest:
 
 `<ticker>/<model>/backtest/sentiment_backtest_results.xlsx`
 
-Walk-forward source:
+Источник walk-forward:
 
 `walk_forward/results/<WF_TICKER>/<model>/trades.xlsx`
 
-Ticker directory mapping:
+Сопоставление папок тикеров:
 
-| Ticker folder | Walk-forward folder |
+| Папка тикера | Папка walk-forward |
 | --- | --- |
 | `rts` | `RTS` |
 | `mix` | `MIX` |
@@ -26,9 +26,9 @@ Ticker directory mapping:
 | `si` | `Si` |
 | `spyf` | `SPYF` |
 
-## Data Contract
+## Контракт данных
 
-Both sources are expected to contain:
+Оба источника должны содержать колонки:
 
 - `source_date`
 - `sentiment`
@@ -39,102 +39,102 @@ Both sources are expected to contain:
 - `pnl`
 - `cum_pnl`
 
-Walk-forward also contains metadata columns such as `ticker`, `model_dir`, `sentiment_model`, `train_start`, `train_end`, and `train_rows`.
+Walk-forward дополнительно содержит метаданные, например `ticker`, `model_dir`, `sentiment_model`, `train_start`, `train_end` и `train_rows`.
 
-The comparison script must ignore source `cum_pnl` and recalculate cumulative P/L from filtered overlap rows so both curves start at zero on the same first comparable date.
+Скрипт сравнения должен игнорировать исходную колонку `cum_pnl` и пересчитывать накопленный P/L после фильтрации по пересекающимся датам. Благодаря этому обе кривые будут начинаться с нуля в первую общую дату.
 
-## Architecture
+## Архитектура
 
-Create a new folder:
+Создать новую папку:
 
 `compare_backtests/`
 
-Initial files:
+Начальные файлы:
 
 - `compare_backtests/__init__.py`
 - `compare_backtests/build_report.py`
 
-The CLI script will:
+CLI-скрипт будет:
 
-1. Discover ticker/model pairs from `walk_forward/results/<WF_TICKER>/<model>/trades.xlsx`.
-2. Resolve the matching ordinary backtest file in `<ticker>/<model>/backtest/sentiment_backtest_results.xlsx`.
-3. Skip pairs where either file is missing, while recording the skip in an errors table.
-4. Read both XLSX files with pandas.
-5. Normalize `source_date` to date values and numeric `pnl`.
-6. Keep only dates present in both sources for that pair.
-7. Recalculate `cum_pnl` on the overlap subset for both sources.
-8. Build summary metrics and an HTML report.
+1. Находить пары тикер/модель по файлам `walk_forward/results/<WF_TICKER>/<model>/trades.xlsx`.
+2. Находить соответствующий файл обычного backtest: `<ticker>/<model>/backtest/sentiment_backtest_results.xlsx`.
+3. Пропускать пары, где один из файлов отсутствует, и записывать пропуск в таблицу ошибок.
+4. Читать оба XLSX-файла через pandas.
+5. Нормализовать `source_date` к датам, а `pnl` к числам.
+6. Оставлять только даты, которые есть в обоих источниках для этой пары.
+7. Пересчитывать `cum_pnl` на пересечении дат для обоих источников.
+8. Строить итоговые метрики и HTML-отчет.
 
-Default output:
+Выходной файл по умолчанию:
 
 `compare_backtests/results/backtest_vs_walk_forward.html`
 
-## Report Layout
+## Структура отчета
 
-The HTML report should contain:
+HTML-отчет должен содержать:
 
-- Header with generation context and count of comparable pairs.
-- Summary leaderboard across all pairs.
-- One section per ticker.
-- For each ticker/model pair:
-  - equity curve with two lines: ordinary backtest and walk-forward;
-  - optional drawdown comparison based on the recalculated cumulative P/L;
-  - compact metrics table.
+- заголовок с контекстом генерации и количеством сопоставимых пар;
+- сводный leaderboard по всем парам;
+- отдельную секцию для каждого тикера;
+- для каждой пары тикер/модель:
+  - equity-кривую с двумя линиями: обычный backtest и walk-forward;
+  - сравнение drawdown на основе пересчитанного накопленного P/L;
+  - компактную таблицу метрик.
 
-Recommended metrics:
+Рекомендуемые метрики:
 
-- overlap date range;
-- overlap rows;
-- ordinary backtest total P/L on overlap dates;
-- walk-forward total P/L on overlap dates;
-- delta P/L (`walk_forward - ordinary_backtest`);
-- ordinary and walk-forward max drawdown;
-- ordinary and walk-forward win rate;
-- signal match rate based on matching `action` and `direction`.
+- диапазон общих дат;
+- количество строк на пересечении;
+- общий P/L обычного backtest на общих датах;
+- общий P/L walk-forward на общих датах;
+- разница P/L (`walk_forward - ordinary_backtest`);
+- max drawdown обычного backtest и walk-forward;
+- win rate обычного backtest и walk-forward;
+- доля совпадения сигналов по `action` и `direction`.
 
-## Error Handling
+## Обработка ошибок
 
-The script should continue when one pair is not usable. It should record:
+Скрипт должен продолжать работу, если отдельная пара не подходит для сравнения. Нужно записывать:
 
-- missing ordinary backtest file;
-- missing walk-forward trades file;
-- unreadable XLSX;
-- missing required columns;
-- no overlapping dates.
+- отсутствующий файл обычного backtest;
+- отсутствующий файл walk-forward trades;
+- ошибку чтения XLSX;
+- отсутствующие обязательные колонки;
+- отсутствие пересекающихся дат.
 
-The HTML report should include an errors and skipped pairs table at the end.
+В конце HTML-отчета должна быть таблица ошибок и пропущенных пар.
 
 ## CLI
 
-Default command:
+Команда по умолчанию:
 
 ```powershell
 .venv\Scripts\python.exe -m compare_backtests.build_report
 ```
 
-Useful options:
+Полезные опции:
 
-- `--walk-results-dir`, default `walk_forward/results`;
-- `--output-html`, default `compare_backtests/results/backtest_vs_walk_forward.html`;
-- `--tickers`, optional comma-separated ticker folders;
-- `--models`, optional comma-separated model folder names;
-- `--open-browser`, optional flag for later if needed, but not required for the first version.
+- `--walk-results-dir`, по умолчанию `walk_forward/results`;
+- `--output-html`, по умолчанию `compare_backtests/results/backtest_vs_walk_forward.html`;
+- `--tickers`, необязательный список папок тикеров через запятую;
+- `--models`, необязательный список папок моделей через запятую;
+- `--open-browser`, необязательный флаг на будущее, для первой версии не нужен.
 
-The first version should generate only HTML. CSV/XLSX exports can be added later if the comparison report becomes part of a broader analysis workflow.
+Первая версия должна генерировать только HTML. CSV/XLSX-экспорты можно добавить позже, если сравнительный отчет станет частью более широкого анализа.
 
-## Testing
+## Проверка
 
-Add focused unit tests for pure helpers:
+Добавить сфокусированные unit-тесты для чистых helper-функций:
 
-- ticker folder mapping;
-- pair discovery;
-- overlap filtering and cumulative P/L recalculation;
-- summary metrics, including no-overlap behavior.
+- сопоставление папок тикеров;
+- обнаружение пар;
+- фильтрация по пересечению дат и пересчет накопленного P/L;
+- расчет итоговых метрик, включая сценарий без пересекающихся дат.
 
-Also run a real smoke test against existing local artifacts:
+Также выполнить реальный smoke test на существующих локальных артефактах:
 
 ```powershell
 .venv\Scripts\python.exe -m compare_backtests.build_report
 ```
 
-The smoke test must create the default HTML report without running trade scripts or modifying model folders.
+Smoke test должен создать HTML-отчет по умолчанию без запуска trade-скриптов и без изменения модельных папок.
