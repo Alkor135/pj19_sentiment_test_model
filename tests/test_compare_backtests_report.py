@@ -106,6 +106,11 @@ class CompareBacktestsReportTest(unittest.TestCase):
             self.assertIn("missing_walk", html)
             self.assertIn("Не найден walk-forward trades", html)
 
+    def test_parse_csv_returns_none_for_empty_and_values_for_list(self) -> None:
+        self.assertIsNone(build_report.parse_csv(None))
+        self.assertIsNone(build_report.parse_csv(""))
+        self.assertEqual(build_report.parse_csv("rts, mix"), ["rts", "mix"])
+
 
 def _ordinary_frame() -> pd.DataFrame:
     return pd.DataFrame(

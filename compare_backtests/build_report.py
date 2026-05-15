@@ -3,11 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from html import escape
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.io as pio
+import typer
 
 
 TICKER_MAP: dict[str, str] = {
@@ -20,6 +21,8 @@ TICKER_MAP: dict[str, str] = {
 
 DEFAULT_WALK_RESULTS_DIR = Path("walk_forward/results")
 DEFAULT_OUTPUT_HTML = Path("compare_backtests/results/backtest_vs_walk_forward.html")
+
+app = typer.Typer(help="Собрать HTML-сравнение ordinary backtest и walk-forward.")
 
 
 @dataclass(frozen=True)
@@ -433,3 +436,57 @@ def build_report(
 
     output_html.parent.mkdir(parents=True, exist_ok=True)
     output_html.write_text(build_html(comparisons=comparisons, errors=errors), encoding="utf-8")
+
+
+def parse_csv(value: Optional[str]) -> list[str] | None:
+    if value is None or value.strip() == "":
+        return None
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+@app.command()
+def main(
+    walk_results_dir: Path = typer.Option(
+        DEFAULT_WALK_RESULTS_DIR,
+        "--walk-results-dir",
+        help="Папка walk-forward результатов.",
+    ),
+    output_html: Path = typer.Option(
+        DEFAULT_OUTPUT_HTML,
+        "--output-html",
+        help="Итоговый HTML-отчет.",
+    ),
+    tickers: Optional[str] = typer.Option(
+        None,
+        "--tickers",
+        help="Фильтр папок тикеров через запятую.",
+    ),
+    models: Optional[str] = typer.Option(
+        None,
+        "--models",
+        help="Фильтр моделей через запятую.",
+    ),
+) -> None:
+    root = Path.cwd()
+    resolved_walk_results_dir = (
+        (root / walk_results_dir).resolve()
+        if not walk_results_dir.is_absolute()
+        else walk_results_dir
+    )
+    resolved_output_html = (
+        (root / output_html).resolve()
+        if not output_html.is_absolute()
+        else output_html
+    )
+    build_report(
+        root=root,
+        walk_results_dir=resolved_walk_results_dir,
+        output_html=resolved_output_html,
+        tickers=parse_csv(tickers),
+        models=parse_csv(models),
+    )
+    typer.echo(f"HTML-отчет: {resolved_output_html}")
+
+
+if __name__ == "__main__":
+    app()
