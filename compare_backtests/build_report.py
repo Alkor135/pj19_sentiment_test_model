@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
+
+import pandas as pd
 
 
 TICKER_MAP: dict[str, str] = {
@@ -23,6 +26,27 @@ class ComparisonPair:
     model_dir: str
     ordinary_path: Path
     walk_path: Path
+
+
+@dataclass
+class PairComparison:
+    pair: ComparisonPair
+    ordinary: pd.DataFrame
+    walk: pd.DataFrame
+    metrics: dict[str, Any]
+    error: str | None = None
+
+
+REQUIRED_COLUMNS = {
+    "source_date",
+    "sentiment",
+    "action",
+    "direction",
+    "next_body",
+    "quantity",
+    "pnl",
+    "cum_pnl",
+}
 
 
 def walk_ticker_for(ticker_lc: str) -> str:
@@ -64,3 +88,89 @@ def discover_pairs(
             )
 
     return sorted(pairs, key=lambda item: (item.ticker_lc, item.model_dir))
+
+
+def normalize_trades(frame: pd.DataFrame) -> pd.DataFrame:
+    result = frame.copy()
+    missing = REQUIRED_COLUMNS - set(result.columns)
+    if missing:
+        raise ValueError(f"Нет обязательных колонок: {sorted(missing)}")
+
+    result["source_date"] = pd.to_datetime(result["source_date"], errors="coerce").dt.date
+    for column in ("sentiment", "next_body", "quantity", "pnl"):
+        result[column] = pd.to_numeric(result[column], errors="coerce")
+    result["action"] = result["action"].fillna("").astype(str)
+    result["direction"] = result["direction"].fillna("").astype(str)
+    result = result.dropna(subset=["source_date", "pnl"]).sort_values("source_date").reset_index(drop=True)
+    return result
+
+
+def _max_drawdown(cum_pnl: pd.Series) -> float:
+    if cum_pnl.empty:
+        return 0.0
+    drawdown = cum_pnl - cum_pnl.cummax()
+    return float(drawdown.min())
+
+
+def _win_rate(pnl: pd.Series) -> float:
+    if pnl.empty:
+        return 0.0
+    return float((pnl > 0).mean() * 100)
+
+
+def _signal_match_rate(ordinary: pd.DataFrame, walk: pd.DataFrame) -> float:
+    if ordinary.empty:
+        return 0.0
+    matches = (
+        (ordinary["action"].reset_index(drop=True) == walk["action"].reset_index(drop=True))
+        & (ordinary["direction"].reset_index(drop=True) == walk["direction"].reset_index(drop=True))
+    )
+    return float(matches.mean() * 100)
+
+
+def prepare_comparison(
+    *,
+    pair: ComparisonPair,
+    ordinary: pd.DataFrame,
+    walk: pd.DataFrame,
+) -> PairComparison:
+    ordinary_norm = normalize_trades(ordinary)
+    walk_norm = normalize_trades(walk)
+    overlap = sorted(set(ordinary_norm["source_date"]) & set(walk_norm["source_date"]))
+    if not overlap:
+        return PairComparison(pair, pd.DataFrame(), pd.DataFrame(), {}, "Нет пересекающихся дат")
+
+    ordinary_overlap = (
+        ordinary_norm[ordinary_norm["source_date"].isin(overlap)]
+        .sort_values("source_date")
+        .reset_index(drop=True)
+    )
+    walk_overlap = (
+        walk_norm[walk_norm["source_date"].isin(overlap)]
+        .sort_values("source_date")
+        .reset_index(drop=True)
+    )
+    ordinary_overlap["pnl"] = ordinary_overlap["pnl"].astype(float)
+    walk_overlap["pnl"] = walk_overlap["pnl"].astype(float)
+    ordinary_overlap["cum_pnl"] = ordinary_overlap["pnl"].cumsum()
+    walk_overlap["cum_pnl"] = walk_overlap["pnl"].cumsum()
+
+    ordinary_total_pnl = float(ordinary_overlap["pnl"].sum())
+    walk_total_pnl = float(walk_overlap["pnl"].sum())
+    metrics = {
+        "ticker": pair.walk_ticker,
+        "ticker_lc": pair.ticker_lc,
+        "model_dir": pair.model_dir,
+        "start_date": overlap[0],
+        "end_date": overlap[-1],
+        "overlap_rows": len(overlap),
+        "ordinary_total_pnl": ordinary_total_pnl,
+        "walk_total_pnl": walk_total_pnl,
+        "delta_pnl": float(walk_total_pnl - ordinary_total_pnl),
+        "ordinary_max_drawdown": _max_drawdown(ordinary_overlap["cum_pnl"]),
+        "walk_max_drawdown": _max_drawdown(walk_overlap["cum_pnl"]),
+        "ordinary_win_rate": _win_rate(ordinary_overlap["pnl"]),
+        "walk_win_rate": _win_rate(walk_overlap["pnl"]),
+        "signal_match_rate": _signal_match_rate(ordinary_overlap, walk_overlap),
+    }
+    return PairComparison(pair, ordinary_overlap, walk_overlap, metrics)

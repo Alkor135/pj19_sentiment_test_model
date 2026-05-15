@@ -41,3 +41,106 @@ class CompareBacktestsReportTest(unittest.TestCase):
                 tmp_path / "mix" / "gemma3_12b" / "backtest" / "sentiment_backtest_results.xlsx",
             )
             self.assertEqual(pairs[0].walk_path, walk_results / "MIX" / "gemma3_12b" / "trades.xlsx")
+
+    def test_prepare_comparison_uses_only_overlap_and_recalculates_cum_pnl(self) -> None:
+        comparison = build_report.prepare_comparison(
+            pair=build_report.ComparisonPair(
+                ticker_lc="rts",
+                walk_ticker="RTS",
+                model_dir="model_a",
+                ordinary_path=Path("ordinary.xlsx"),
+                walk_path=Path("walk.xlsx"),
+            ),
+            ordinary=_ordinary_frame(),
+            walk=_walk_frame(),
+        )
+
+        self.assertIsNone(comparison.error)
+        self.assertEqual(comparison.ordinary["source_date"].astype(str).tolist(), ["2026-01-02", "2026-01-03"])
+        self.assertEqual(comparison.walk["source_date"].astype(str).tolist(), ["2026-01-02", "2026-01-03"])
+        self.assertEqual(comparison.ordinary["cum_pnl"].tolist(), [-3.0, 2.0])
+        self.assertEqual(comparison.walk["cum_pnl"].tolist(), [-3.0, -8.0])
+        self.assertEqual(comparison.metrics["ordinary_total_pnl"], 2.0)
+        self.assertEqual(comparison.metrics["walk_total_pnl"], -8.0)
+        self.assertEqual(comparison.metrics["delta_pnl"], -10.0)
+        self.assertEqual(comparison.metrics["signal_match_rate"], 50.0)
+
+
+def _ordinary_frame() -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "source_date": "2026-01-01",
+                "sentiment": 1,
+                "action": "follow",
+                "direction": "LONG",
+                "next_body": 10,
+                "quantity": 1,
+                "pnl": 10,
+                "cum_pnl": 10,
+            },
+            {
+                "source_date": "2026-01-02",
+                "sentiment": -1,
+                "action": "invert",
+                "direction": "LONG",
+                "next_body": -3,
+                "quantity": 1,
+                "pnl": -3,
+                "cum_pnl": 7,
+            },
+            {
+                "source_date": "2026-01-03",
+                "sentiment": 2,
+                "action": "follow",
+                "direction": "LONG",
+                "next_body": 5,
+                "quantity": 1,
+                "pnl": 5,
+                "cum_pnl": 12,
+            },
+        ]
+    )
+
+
+def _walk_frame() -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "source_date": "2026-01-02",
+                "sentiment": -1,
+                "action": "invert",
+                "direction": "LONG",
+                "next_body": -3,
+                "quantity": 1,
+                "pnl": -3,
+                "cum_pnl": -3,
+                "ticker": "RTS",
+                "model_dir": "model_a",
+            },
+            {
+                "source_date": "2026-01-03",
+                "sentiment": 2,
+                "action": "invert",
+                "direction": "SHORT",
+                "next_body": 5,
+                "quantity": 1,
+                "pnl": -5,
+                "cum_pnl": -8,
+                "ticker": "RTS",
+                "model_dir": "model_a",
+            },
+            {
+                "source_date": "2026-01-04",
+                "sentiment": 3,
+                "action": "follow",
+                "direction": "LONG",
+                "next_body": 7,
+                "quantity": 1,
+                "pnl": 7,
+                "cum_pnl": -1,
+                "ticker": "RTS",
+                "model_dir": "model_a",
+            },
+        ]
+    )
