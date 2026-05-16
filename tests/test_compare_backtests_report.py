@@ -1,8 +1,10 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 
 import pandas as pd
+from typer.testing import CliRunner
 
 from compare_backtests import build_report
 
@@ -105,6 +107,36 @@ class CompareBacktestsReportTest(unittest.TestCase):
             self.assertIn("Не найден ordinary backtest", html)
             self.assertIn("missing_walk", html)
             self.assertIn("Не найден walk-forward trades", html)
+
+    def test_cli_opens_html_after_report_is_created(self) -> None:
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            output_html = tmp_path / "compare.html"
+            walk_results = tmp_path / "walk_forward" / "results"
+
+            def fake_build_report(**kwargs) -> None:
+                kwargs["output_html"].write_text("<html></html>", encoding="utf-8")
+
+            runner = CliRunner()
+            with (
+                patch.object(build_report, "build_report", side_effect=fake_build_report),
+                patch.object(build_report, "open_html_in_chrome") as open_html_in_chrome,
+            ):
+                result = runner.invoke(
+                    build_report.app,
+                    [
+                        "--walk-results-dir",
+                        str(walk_results),
+                        "--output-html",
+                        str(output_html),
+                    ],
+                )
+
+            self.assertEqual(result.exit_code, 0, result.output)
+            open_html_in_chrome.assert_called_once_with(
+                Path(r"C:\Program Files\Google\Chrome\Application\chrome.exe"),
+                output_html,
+            )
 
     def test_parse_csv_returns_none_for_empty_and_values_for_list(self) -> None:
         self.assertIsNone(build_report.parse_csv(None))

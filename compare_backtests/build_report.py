@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from html import escape
 from pathlib import Path
+import subprocess
 from typing import Any, Optional
 
 import pandas as pd
@@ -21,6 +22,7 @@ TICKER_MAP: dict[str, str] = {
 
 DEFAULT_WALK_RESULTS_DIR = Path("walk_forward/results")
 DEFAULT_OUTPUT_HTML = Path("compare_backtests/results/backtest_vs_walk_forward.html")
+CHROME_PATH = Path(r"C:\Program Files\Google\Chrome\Application\chrome.exe")
 
 app = typer.Typer(help="Собрать HTML-сравнение ordinary backtest и walk-forward.")
 
@@ -438,6 +440,14 @@ def build_report(
     output_html.write_text(build_html(comparisons=comparisons, errors=errors), encoding="utf-8")
 
 
+def open_html_in_chrome(chrome_path: Path, output_html: Path) -> None:
+    if not chrome_path.exists():
+        typer.echo(f"Google Chrome не найден: {chrome_path}")
+        raise typer.Exit(code=1)
+
+    subprocess.Popen([str(chrome_path), "--new-window", str(output_html)])
+
+
 def parse_csv(value: Optional[str]) -> list[str] | None:
     if value is None or value.strip() == "":
         return None
@@ -466,6 +476,16 @@ def main(
         "--models",
         help="Фильтр моделей через запятую.",
     ),
+    open_browser: bool = typer.Option(
+        True,
+        "--open-browser/--no-open-browser",
+        help="Открыть HTML-отчет в новом окне Chrome после создания.",
+    ),
+    chrome_path: Path = typer.Option(
+        CHROME_PATH,
+        "--chrome-path",
+        help="Путь к chrome.exe.",
+    ),
 ) -> None:
     root = Path.cwd()
     resolved_walk_results_dir = (
@@ -486,6 +506,9 @@ def main(
         models=parse_csv(models),
     )
     typer.echo(f"HTML-отчет: {resolved_output_html}")
+    if open_browser:
+        open_html_in_chrome(chrome_path, resolved_output_html)
+        typer.echo(f"Открываю в Chrome: {resolved_output_html}")
 
 
 if __name__ == "__main__":
