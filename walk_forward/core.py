@@ -1,3 +1,18 @@
+"""Ядро дневного walk-forward бэктеста.
+
+Модуль содержит чистую расчётную логику: выбор обучающего окна, построение
+правил по sentiment, расчёт тестового дня, агрегацию результатов модели и
+сохранение артефактов в отдельную папку `walk_forward/results/`.
+
+Прямой запуск файла не предусмотрен. Используй его через CLI-обёртку:
+
+    .venv\\Scripts\\python.exe -m walk_forward.run_walk_forward
+
+Или импортируй функции в тестах/скриптах:
+
+    from walk_forward.core import run_walk_forward_model
+"""
+
 from __future__ import annotations
 
 import json
@@ -15,6 +30,8 @@ VALID_ACTIONS = {"follow", "invert", "skip"}
 
 @dataclass
 class WalkForwardDayResult:
+    """Хранит результат одного тестового дня walk-forward."""
+
     summary: dict[str, Any]
     trade: dict[str, Any] | None
     grouped: pd.DataFrame | None
@@ -23,6 +40,8 @@ class WalkForwardDayResult:
 
 @dataclass
 class WalkForwardModelResult:
+    """Хранит итог полного walk-forward прогона одной модели."""
+
     daily_summaries: list[dict[str, Any]]
     trades: pd.DataFrame
     model_summary: dict[str, Any]
@@ -30,6 +49,8 @@ class WalkForwardModelResult:
 
 
 def training_window_for(test_date: date, train_months: int) -> tuple[date, date]:
+    """Возвращает границы обучающего окна для заданного тестового дня."""
+
     if train_months < 1:
         raise ValueError("train_months должен быть >= 1")
     start = (pd.Timestamp(test_date) - pd.DateOffset(months=train_months)).date()
@@ -43,6 +64,8 @@ def split_walk_forward_day(
     test_date: date,
     train_months: int,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Разделяет индексированный DataFrame на обучение и один тестовый день."""
+
     train_start, train_end = training_window_for(test_date, train_months)
     train_mask = (indexed.index >= train_start) & (indexed.index <= train_end)
     test_mask = indexed.index == test_date
@@ -55,6 +78,8 @@ def iter_test_dates(
     start_date: date,
     end_date: date | None,
 ) -> list[date]:
+    """Возвращает доступные тестовые даты внутри заданного диапазона."""
+
     if indexed.empty:
         return []
     last_date = max(indexed.index)
@@ -67,6 +92,8 @@ def iter_test_dates(
 
 
 def build_follow_trades(aggregated: pd.DataFrame, quantity: int) -> pd.DataFrame:
+    """Строит обучающие follow-сделки для оценки каждого sentiment."""
+
     rows: list[dict[str, Any]] = []
     for source_date, row in aggregated.iterrows():
         sentiment = float(row["sentiment"])
@@ -86,6 +113,8 @@ def build_follow_trades(aggregated: pd.DataFrame, quantity: int) -> pd.DataFrame
 
 
 def group_by_sentiment(trades: pd.DataFrame) -> pd.DataFrame:
+    """Группирует обучающие сделки по sentiment от -10 до 10."""
+
     grouped = (
         trades.groupby("sentiment")
         .agg(
@@ -106,10 +135,14 @@ def group_by_sentiment(trades: pd.DataFrame) -> pd.DataFrame:
 
 
 def _action_from_total_pnl(total_pnl: float) -> str:
+    """Преобразует знак total_pnl в действие follow или invert."""
+
     return "follow" if total_pnl > 0 else "invert"
 
 
 def recommend_action(total_pnl_by_sentiment: pd.Series, sentiment: int) -> str:
+    """Выбирает действие для sentiment, включая fallback для нулевого P/L."""
+
     total_pnl = float(total_pnl_by_sentiment.loc[sentiment])
     if total_pnl > 0:
         return "follow"
@@ -147,6 +180,8 @@ def recommend_action(total_pnl_by_sentiment: pd.Series, sentiment: int) -> str:
 
 
 def build_rules_recommendation(grouped: pd.DataFrame) -> list[dict[str, int | str]]:
+    """Создаёт правила follow/invert для всех значений sentiment."""
+
     total_pnl_by_sentiment = grouped.copy()
     total_pnl_by_sentiment["sentiment"] = total_pnl_by_sentiment["sentiment"].astype(int)
     total_pnl = total_pnl_by_sentiment.set_index("sentiment")["total_pnl"]
@@ -161,6 +196,8 @@ def build_rules_recommendation(grouped: pd.DataFrame) -> list[dict[str, int | st
 
 
 def match_action(sentiment: float, rules: list[dict[str, Any]]) -> str:
+    """Находит action из rules.yaml-подобного списка для конкретного sentiment."""
+
     for rule in rules:
         if float(rule["min"]) <= sentiment <= float(rule["max"]):
             action = str(rule["action"])
@@ -171,6 +208,8 @@ def match_action(sentiment: float, rules: list[dict[str, Any]]) -> str:
 
 
 def direction_for_action(sentiment: float, action: str) -> str:
+    """Преобразует sentiment и action в направление LONG или SHORT."""
+
     if action == "follow":
         return "LONG" if sentiment >= 0 else "SHORT"
     return "SHORT" if sentiment >= 0 else "LONG"
@@ -181,6 +220,8 @@ def build_backtest(
     quantity: int,
     rules: list[dict[str, Any]],
 ) -> pd.DataFrame:
+    """Применяет правила к тестовой выборке и возвращает сделки бэктеста."""
+
     rows: list[dict[str, Any]] = []
     for source_date, row in aggregated.iterrows():
         sentiment = float(row["sentiment"])
@@ -222,6 +263,8 @@ def render_rules_yaml(
     train_start: date,
     train_end: date,
 ) -> str:
+    """Рендерит дневные правила в YAML-текст для optional daily artifacts."""
+
     lines = [
         (
             f"rules:  # WF {ticker} {sentiment_model} "
@@ -246,6 +289,8 @@ def _base_summary(
     train_rows: int,
     test_rows: int,
 ) -> dict[str, Any]:
+    """Создаёт базовую строку summary для одного тестового дня."""
+
     return {
         "ticker": ticker,
         "model_dir": model_dir,
@@ -274,6 +319,8 @@ def run_walk_forward_day(
     train_months: int,
     min_train_rows: int,
 ) -> WalkForwardDayResult:
+    """Полностью рассчитывает один walk-forward день для одной модели."""
+
     train_start, train_end = training_window_for(test_date, train_months)
     train, test = split_walk_forward_day(
         indexed,
@@ -331,6 +378,8 @@ def summarize_model(
     daily_summaries: list[dict[str, Any]],
     trades: pd.DataFrame,
 ) -> dict[str, Any]:
+    """Считает итоговые метрики по всем дням одной модели."""
+
     ok_days = sum(1 for row in daily_summaries if row["status"] == "ok")
     skipped_days = sum(1 for row in daily_summaries if row["status"] == "skipped")
     error_days = sum(1 for row in daily_summaries if row["status"] == "error")
@@ -369,6 +418,8 @@ def run_walk_forward_model(
     train_months: int,
     min_train_rows: int,
 ) -> WalkForwardModelResult:
+    """Запускает walk-forward цикл по всем тестовым датам одной модели."""
+
     daily_summaries: list[dict[str, Any]] = []
     trade_rows: list[dict[str, Any]] = []
     daily_artifacts: dict[date, WalkForwardDayResult] = {}
@@ -412,6 +463,8 @@ def run_walk_forward_model(
 
 
 def _json_default(value: Any) -> str:
+    """Преобразует нестандартные типы в строки при записи JSON."""
+
     if isinstance(value, date):
         return value.isoformat()
     return str(value)
@@ -428,6 +481,8 @@ def save_model_outputs(
     save_daily_artifacts: bool,
     daily_artifacts: dict[date, WalkForwardDayResult],
 ) -> None:
+    """Сохраняет CSV/XLSX/JSON артефакты результата одной модели."""
+
     target = output_dir / ticker / model_dir
     target.mkdir(parents=True, exist_ok=True)
     trades.to_csv(target / "trades.csv", index=False, encoding="utf-8-sig")
@@ -458,6 +513,8 @@ def save_model_outputs(
 
 
 def save_global_summary(output_dir: Path, summaries: list[dict[str, Any]]) -> None:
+    """Сохраняет общий summary.csv и summary.xlsx по всем моделям запуска."""
+
     output_dir.mkdir(parents=True, exist_ok=True)
     summary_df = pd.DataFrame(summaries)
     summary_df.to_csv(output_dir / "summary.csv", index=False, encoding="utf-8-sig")
