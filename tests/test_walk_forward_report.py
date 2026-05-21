@@ -1,8 +1,10 @@
 from datetime import date
 from pathlib import Path
+from unittest.mock import patch
 
 import pandas as pd
 from openpyxl import load_workbook
+from typer.testing import CliRunner
 
 from walk_forward import report
 
@@ -224,3 +226,37 @@ def test_build_report_writes_html_and_excel(tmp_path: Path) -> None:
     assert "Лучшие модели по тикерам" in html
     assert "RTS" in html
     assert output_xlsx.exists()
+
+
+def test_cli_opens_html_report_in_chrome_after_build(tmp_path: Path) -> None:
+    output_html = tmp_path / "walk_forward_report.html"
+    output_xlsx = tmp_path / "walk_forward_report.xlsx"
+
+    def fake_build_report(**kwargs: Path) -> tuple[Path, Path]:
+        kwargs["output_html"].write_text("<html></html>", encoding="utf-8")
+        return kwargs["output_html"], kwargs["output_xlsx"]
+
+    runner = CliRunner()
+    with (
+        patch.object(report, "build_report", side_effect=fake_build_report),
+        patch.object(report, "open_html_in_chrome", create=True) as open_html_in_chrome,
+    ):
+        result = runner.invoke(
+            report.app,
+            [
+                "--summary-csv",
+                str(tmp_path / "summary.csv"),
+                "--results-dir",
+                str(tmp_path),
+                "--output-html",
+                str(output_html),
+                "--output-xlsx",
+                str(output_xlsx),
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    open_html_in_chrome.assert_called_once_with(
+        Path(r"C:\Program Files\Google\Chrome\Application\chrome.exe"),
+        output_html,
+    )

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from html import escape
 from pathlib import Path
+import subprocess
 from typing import Any
 
 import pandas as pd
@@ -16,6 +17,7 @@ DEFAULT_RESULTS_DIR = Path(__file__).resolve().parent / "results"
 DEFAULT_SUMMARY_CSV = DEFAULT_RESULTS_DIR / "summary.csv"
 DEFAULT_OUTPUT_HTML = DEFAULT_RESULTS_DIR / "walk_forward_report.html"
 DEFAULT_OUTPUT_XLSX = DEFAULT_RESULTS_DIR / "walk_forward_report.xlsx"
+CHROME_PATH = Path(r"C:\Program Files\Google\Chrome\Application\chrome.exe")
 SUMMARY_COLUMNS = (
     "status",
     "ticker",
@@ -734,12 +736,30 @@ def build_report(
     return output_html, output_xlsx
 
 
+def open_html_in_chrome(chrome_path: Path, output_html: Path) -> None:
+    if not chrome_path.exists():
+        typer.echo(f"Google Chrome не найден: {chrome_path}")
+        raise typer.Exit(code=1)
+
+    subprocess.Popen([str(chrome_path), "--new-window", str(output_html)])
+
+
 @app.command()
 def main(
     summary_csv: Path = typer.Option(DEFAULT_SUMMARY_CSV, "--summary-csv", help="Путь к summary.csv."),
     results_dir: Path = typer.Option(DEFAULT_RESULTS_DIR, "--results-dir", help="Папка результатов walk-forward."),
     output_html: Path = typer.Option(DEFAULT_OUTPUT_HTML, "--output-html", help="HTML отчёт."),
     output_xlsx: Path = typer.Option(DEFAULT_OUTPUT_XLSX, "--output-xlsx", help="Excel отчёт."),
+    open_browser: bool = typer.Option(
+        True,
+        "--open-browser/--no-open-browser",
+        help="Открыть HTML отчёт в новом окне Chrome после создания.",
+    ),
+    chrome_path: Path = typer.Option(
+        CHROME_PATH,
+        "--chrome-path",
+        help="Путь к chrome.exe.",
+    ),
 ) -> None:
     html_path, xlsx_path = build_report(
         summary_csv=summary_csv,
@@ -749,6 +769,9 @@ def main(
     )
     typer.echo(f"HTML отчёт: {html_path}")
     typer.echo(f"Excel отчёт: {xlsx_path}")
+    if open_browser:
+        open_html_in_chrome(chrome_path, html_path)
+        typer.echo(f"Открываю в Chrome: {html_path}")
 
 
 if __name__ == "__main__":

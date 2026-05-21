@@ -20,6 +20,12 @@
 .venv\Scripts\python.exe -m walk_forward.report
 ```
 
+После сборки HTML отчёт открывается в новом окне Chrome. Если нужно только пересобрать файлы без открытия браузера:
+
+```powershell
+.venv\Scripts\python.exe -m walk_forward.report --no-open-browser
+```
+
 ## Логика
 
 Для каждой тестовой даты `D` правила строятся на окне `D - train_months` .. `D - 1 день`.
