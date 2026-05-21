@@ -70,10 +70,39 @@ def test_load_model_settings_merges_common_defaults_and_model_overrides() -> Non
     assert settings["sentiment_output_pkl"] == "rts/gemma3_12b/sentiment_scores.pkl"
 
 
-def test_default_settings_match_approved_design() -> None:
+def test_settings_file_is_valid_for_experiments() -> None:
     settings = run_walk_forward.load_yaml(run_walk_forward.SETTINGS_PATH)
 
-    assert settings["backtest_start_date"] == "2025-04-01"
-    assert settings["train_months"] == 6
-    assert settings["save_daily_artifacts"] is False
-    assert settings["output_dir"] == "walk_forward/results"
+    required = {
+        "tickers",
+        "models",
+        "backtest_start_date",
+        "backtest_end_date",
+        "train_months",
+        "output_dir",
+        "save_daily_artifacts",
+        "min_train_rows",
+        "keep_going",
+    }
+    assert required <= set(settings)
+
+    options = run_walk_forward.merge_run_options(
+        settings,
+        tickers=None,
+        models=None,
+        start_date=None,
+        end_date=None,
+        train_months=None,
+        output_dir=None,
+        save_daily_artifacts=None,
+        min_train_rows=None,
+        keep_going=None,
+    )
+
+    assert options.tickers
+    assert options.backtest_start_date == run_walk_forward.parse_date(settings["backtest_start_date"])
+    assert options.train_months >= 1
+    assert options.min_train_rows >= 1
+    assert isinstance(options.save_daily_artifacts, bool)
+    assert isinstance(options.keep_going, bool)
+    assert options.output_dir.is_absolute()
