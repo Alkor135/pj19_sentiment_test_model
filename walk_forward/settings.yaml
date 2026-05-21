@@ -1,8 +1,8 @@
 tickers: [rts, mix, ng, si, spyf]
 models: []
-backtest_start_date: "2025-04-01"
+backtest_start_date: "2025-08-01"
 backtest_end_date: null
-train_months: 10
+train_months: 6
 output_dir: "walk_forward/results"
 save_daily_artifacts: false
 min_train_rows: 20
