@@ -11,8 +11,13 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import date, datetime
+from html import escape
+import importlib.util
 from pathlib import Path
 import pickle
+import subprocess
+import sys
+import time
 from typing import Any, Optional
 
 import pandas as pd
@@ -20,6 +25,7 @@ import typer
 import yaml
 
 from walk_forward.core import (
+    WalkForwardModelResult,
     build_follow_trades,
     build_rules_recommendation,
     direction_for_action,
@@ -34,6 +40,8 @@ from walk_forward.core import (
 RULES_WF_FILENAME = "rules_wf.yaml"
 GROUP_STATS_WF_FILENAME = "sentiment_group_stats_wf.xlsx"
 BACKTEST_WF_FILENAME = "sentiment_backtest_results_wf.xlsx"
+BACKTEST_WF_HTML_FILENAME = "sentiment_backtest_wf.html"
+DEFAULT_CHROME_PATH = Path(r"C:\Program Files\Google\Chrome\Application\chrome.exe")
 
 
 @dataclass(frozen=True)
@@ -62,6 +70,15 @@ class LiveRulesResult:
     train_rows: int
     rules: list[dict[str, Any]]
     grouped: pd.DataFrame
+
+
+@dataclass(frozen=True)
+class BacktestWfReportResult:
+    """Артефакты модельного walk-forward отчёта."""
+
+    xlsx_path: Path
+    html_path: Path
+    trades: pd.DataFrame
 
 
 def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
@@ -429,6 +446,26 @@ def write_backtest_wf_outputs(
 ) -> Path:
     """Запускает WF-бэктест модели и пишет XLSX сделок в ``backtest/``."""
 
+    context, result = run_backtest_wf(
+        script_file,
+        start_date=start_date,
+        end_date=end_date,
+        train_months=train_months,
+        min_train_rows=min_train_rows,
+    )
+    return write_backtest_wf_xlsx(context, result.trades)
+
+
+def run_backtest_wf(
+    script_file: str | Path,
+    *,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    train_months: int | None = None,
+    min_train_rows: int | None = None,
+) -> tuple[ModelContext, WalkForwardModelResult]:
+    """Считает WF-бэктест модели и возвращает контекст плюс расчётный результат."""
+
     context = load_model_context(script_file)
     indexed = load_indexed_sentiment(context.sentiment_pkl)
 
@@ -456,10 +493,195 @@ def write_backtest_wf_outputs(
         min_train_rows=_effective_min_train_rows(context.settings, min_train_rows),
     )
 
+    return context, result
+
+
+def write_backtest_wf_xlsx(context: ModelContext, trades: pd.DataFrame) -> Path:
+    """Пишет XLSX WF-бэктеста модели в ``backtest/``."""
+
     output_xlsx = context.model_path / "backtest" / BACKTEST_WF_FILENAME
     output_xlsx.parent.mkdir(parents=True, exist_ok=True)
-    result.trades.to_excel(output_xlsx, index=False)
+    trades.to_excel(output_xlsx, index=False)
     return output_xlsx
+
+
+def _load_model_backtest_module(context: ModelContext):
+    """Импортирует модельный ``sentiment_backtest.py`` для переиспользования HTML-отчёта."""
+
+    module_path = context.model_path / "sentiment_backtest.py"
+    if not module_path.exists():
+        raise FileNotFoundError(f"Скрипт построения HTML не найден: {module_path}")
+
+    module_name = f"_wf_sentiment_backtest_{context.ticker_path.name}_{context.model_dir}_{id(context)}"
+    spec = importlib.util.spec_from_file_location(module_name, module_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Не удалось загрузить модуль: {module_path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _write_empty_backtest_wf_html(
+    output_html: Path,
+    *,
+    context: ModelContext,
+    reason: str,
+) -> None:
+    """Пишет минимальный HTML, если WF-бэктест не дал ни одной сделки."""
+
+    output_html.parent.mkdir(parents=True, exist_ok=True)
+    title = f"{context.ticker} {context.sentiment_model} WF-бэктест"
+    output_html.write_text(
+        "\n".join(
+            [
+                "<!doctype html>",
+                "<html lang=\"ru\">",
+                "<head>",
+                "  <meta charset=\"utf-8\">",
+                f"  <title>{escape(title)}</title>",
+                "</head>",
+                "<body>",
+                f"  <h1>{escape(title)}</h1>",
+                f"  <p>{escape(reason)}</p>",
+                "</body>",
+                "</html>",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
+def write_backtest_wf_html(context: ModelContext, trades: pd.DataFrame) -> Path:
+    """Пишет Plotly HTML WF-бэктеста без генерации QuantStats-отчёта."""
+
+    output_html = context.model_path / "plots" / BACKTEST_WF_HTML_FILENAME
+    output_html.parent.mkdir(parents=True, exist_ok=True)
+
+    if trades.empty:
+        _write_empty_backtest_wf_html(
+            output_html,
+            context=context,
+            reason="WF-бэктест не сформировал сделок для выбранного периода.",
+        )
+        return output_html
+
+    module = _load_model_backtest_module(context)
+    build_report = getattr(module, "build_report", None)
+    if not callable(build_report):
+        raise AttributeError(f"В {context.model_path / 'sentiment_backtest.py'} нет build_report()")
+
+    build_report(
+        trades.copy(),
+        context.ticker,
+        context.sentiment_model,
+        output_html,
+        context.model_path / RULES_WF_FILENAME,
+    )
+    return output_html
+
+
+def write_backtest_wf_report(
+    script_file: str | Path,
+    *,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    train_months: int | None = None,
+    min_train_rows: int | None = None,
+) -> BacktestWfReportResult:
+    """Запускает WF-бэктест модели и пишет XLSX плюс HTML-отчёт."""
+
+    context, result = run_backtest_wf(
+        script_file,
+        start_date=start_date,
+        end_date=end_date,
+        train_months=train_months,
+        min_train_rows=min_train_rows,
+    )
+    xlsx_path = write_backtest_wf_xlsx(context, result.trades)
+    html_path = write_backtest_wf_html(context, result.trades)
+    return BacktestWfReportResult(xlsx_path=xlsx_path, html_path=html_path, trades=result.trades)
+
+
+def open_html_reports_in_chrome(chrome_path: Path, reports: list[Path]) -> None:
+    """Открывает HTML-отчёты в одном новом окне Google Chrome."""
+
+    if not reports:
+        return
+    if not chrome_path.exists():
+        raise FileNotFoundError(f"Google Chrome не найден: {chrome_path}")
+    subprocess.Popen([str(chrome_path), "--new-window", *[str(p) for p in reports]])
+
+
+def discover_model_fw_runners(ticker_dir: Path) -> list[Path]:
+    """Находит модельные ``run_report_fw.py`` в папке тикера."""
+
+    runners: list[Path] = []
+    for child in sorted(ticker_dir.iterdir()):
+        if not child.is_dir() or child.name in {"combine", "shared"}:
+            continue
+        candidate = child / "run_report_fw.py"
+        if candidate.exists():
+            runners.append(candidate)
+    return runners
+
+
+def _build_model_fw_args(
+    *,
+    start_date: str | None,
+    end_date: str | None,
+    train_months: int | None,
+    min_train_rows: int | None,
+) -> list[str]:
+    """Формирует CLI-аргументы для модельного ``run_report_fw.py``."""
+
+    args = ["--no-open-browser"]
+    if start_date:
+        args.extend(["--start-date", start_date])
+    if end_date:
+        args.extend(["--end-date", end_date])
+    if train_months is not None:
+        args.extend(["--train-months", str(train_months)])
+    if min_train_rows is not None:
+        args.extend(["--min-train-rows", str(min_train_rows)])
+    return args
+
+
+def run_model_fw_report(
+    runner: Path,
+    *,
+    model_args: list[str],
+    stop_on_error: bool,
+) -> tuple[str, float, Path | None]:
+    """Запускает WF-отчёт одной модели через её wrapper-скрипт."""
+
+    name = runner.parent.name
+    typer.echo(f"\n########## {name} ##########")
+
+    context = load_model_context(runner)
+    if not context.sentiment_pkl.exists():
+        typer.echo(f"[SKIP] {name}: sentiment PKL не найден: {context.sentiment_pkl}")
+        return "skip", 0.0, None
+
+    started = time.monotonic()
+    completed = subprocess.run(
+        [sys.executable, str(runner), *model_args],
+        cwd=str(runner.parent),
+    )
+    elapsed = time.monotonic() - started
+
+    if completed.returncode == 0:
+        html_path = runner.parent / "plots" / BACKTEST_WF_HTML_FILENAME
+        if not html_path.exists():
+            typer.echo(f"[WARN] {name}: HTML не найден после успешного запуска: {html_path}")
+            html_path = None
+        typer.echo(f"[OK]   {name} ({elapsed:.1f} с)")
+        return "ok", elapsed, html_path
+
+    typer.echo(f"[FAIL] {name} код={completed.returncode} ({elapsed:.1f} с)")
+    if stop_on_error:
+        raise typer.Exit(code=completed.returncode)
+    return "fail", elapsed, None
 
 
 def rules_recommendation_wf_app(script_file: str | Path) -> typer.Typer:
@@ -508,9 +730,9 @@ def sentiment_to_predict_wf_app(script_file: str | Path) -> typer.Typer:
 
 
 def sentiment_backtest_wf_app(script_file: str | Path) -> typer.Typer:
-    """Создаёт Typer-приложение для экспорта WF-бэктеста модели в XLSX."""
+    """Создаёт Typer-приложение для экспорта WF-бэктеста модели в XLSX и HTML."""
 
-    app = typer.Typer(help="Пишет XLSX WF-бэктеста модели.")
+    app = typer.Typer(help="Пишет XLSX и HTML WF-бэктеста модели.")
 
     @app.command()
     def main(
@@ -519,13 +741,158 @@ def sentiment_backtest_wf_app(script_file: str | Path) -> typer.Typer:
         train_months: Optional[int] = typer.Option(None, "--train-months", help="Количество месяцев истории."),
         min_train_rows: Optional[int] = typer.Option(None, "--min-train-rows", help="Минимум строк обучения."),
     ) -> None:
-        output_xlsx = write_backtest_wf_outputs(
+        report = write_backtest_wf_report(
             script_file,
             start_date=_parse_date(start_date) if start_date else None,
             end_date=_parse_date(end_date) if end_date else None,
             train_months=train_months,
             min_train_rows=min_train_rows,
         )
-        typer.echo(f"XLSX WF-бэктеста сохранён: {output_xlsx}")
+        typer.echo(f"XLSX WF-бэктеста сохранён: {report.xlsx_path}")
+        typer.echo(f"HTML WF-бэктеста сохранён: {report.html_path}")
+
+    return app
+
+
+def run_report_fw_app(script_file: str | Path) -> typer.Typer:
+    """Создаёт Typer-приложение для модельного WF-отчёта с открытием HTML."""
+
+    app = typer.Typer(help="Строит WF-отчёт модели без QuantStats и открывает HTML.")
+
+    @app.command()
+    def main(
+        start_date: Optional[str] = typer.Option(None, "--start-date", help="Дата начала YYYY-MM-DD."),
+        end_date: Optional[str] = typer.Option(None, "--end-date", help="Дата окончания YYYY-MM-DD."),
+        train_months: Optional[int] = typer.Option(None, "--train-months", help="Количество месяцев истории."),
+        min_train_rows: Optional[int] = typer.Option(None, "--min-train-rows", help="Минимум строк обучения."),
+        open_browser: bool = typer.Option(
+            True,
+            "--open-browser/--no-open-browser",
+            help="Открывать созданный HTML в новом окне Chrome.",
+        ),
+        chrome_path: Path = typer.Option(
+            DEFAULT_CHROME_PATH,
+            "--chrome-path",
+            help="Путь к chrome.exe.",
+        ),
+    ) -> None:
+        report = write_backtest_wf_report(
+            script_file,
+            start_date=_parse_date(start_date) if start_date else None,
+            end_date=_parse_date(end_date) if end_date else None,
+            train_months=train_months,
+            min_train_rows=min_train_rows,
+        )
+        typer.echo(f"XLSX WF-бэктеста сохранён: {report.xlsx_path}")
+        typer.echo(f"HTML WF-бэктеста сохранён: {report.html_path}")
+
+        if open_browser:
+            try:
+                open_html_reports_in_chrome(chrome_path, [report.html_path])
+            except FileNotFoundError as exc:
+                raise typer.BadParameter(str(exc)) from exc
+            typer.echo(f"Открываю HTML в Chrome: {report.html_path}")
+
+    return app
+
+
+def run_ticker_report_fw_app(script_file: str | Path) -> typer.Typer:
+    """Создаёт Typer-приложение для WF-отчётов всех моделей одного тикера."""
+
+    ticker_dir = Path(script_file).resolve().parent
+    ticker_name = ticker_dir.name.upper()
+    app = typer.Typer(
+        help=f"Последовательный запуск WF-отчётов всех моделей {ticker_name}."
+    )
+
+    @app.command()
+    def main(
+        only: Optional[str] = typer.Option(
+            None,
+            "--only",
+            help="Запустить только указанные модели через запятую.",
+        ),
+        keep_going: bool = typer.Option(
+            False,
+            "--keep-going/--stop-on-error",
+            help="Продолжать прогон при падении модели.",
+        ),
+        start_date: Optional[str] = typer.Option(None, "--start-date", help="Дата начала YYYY-MM-DD."),
+        end_date: Optional[str] = typer.Option(None, "--end-date", help="Дата окончания YYYY-MM-DD."),
+        train_months: Optional[int] = typer.Option(None, "--train-months", help="Количество месяцев истории."),
+        min_train_rows: Optional[int] = typer.Option(None, "--min-train-rows", help="Минимум строк обучения."),
+        open_browser: bool = typer.Option(
+            True,
+            "--open-browser/--no-open-browser",
+            help="Открывать созданные HTML в одном новом окне Chrome.",
+        ),
+        chrome_path: Path = typer.Option(
+            DEFAULT_CHROME_PATH,
+            "--chrome-path",
+            help="Путь к chrome.exe.",
+        ),
+    ) -> None:
+        all_runners = discover_model_fw_runners(ticker_dir)
+        if not all_runners:
+            typer.echo(f"Не найдено модельных run_report_fw.py в {ticker_dir}.")
+            raise typer.Exit(code=1)
+
+        if only:
+            wanted = {s.strip() for s in only.split(",") if s.strip()}
+            available = {runner.parent.name for runner in all_runners}
+            unknown = wanted - available
+            if unknown:
+                raise typer.BadParameter(
+                    f"Неизвестные модели: {sorted(unknown)}. Доступны: {sorted(available)}"
+                )
+            runners = [runner for runner in all_runners if runner.parent.name in wanted]
+        else:
+            runners = all_runners
+
+        model_args = _build_model_fw_args(
+            start_date=start_date,
+            end_date=end_date,
+            train_months=train_months,
+            min_train_rows=min_train_rows,
+        )
+
+        typer.echo(f"Корневая папка: {ticker_dir}")
+        typer.echo(f"Моделей к запуску: {len(runners)}")
+        for runner in runners:
+            typer.echo(f"  - {runner.parent.name}")
+
+        total_started = time.monotonic()
+        summary: list[tuple[str, str, float]] = []
+        html_reports: list[Path] = []
+        for runner in runners:
+            status, elapsed, html_path = run_model_fw_report(
+                runner,
+                model_args=model_args,
+                stop_on_error=not keep_going,
+            )
+            summary.append((runner.parent.name, status, elapsed))
+            if html_path is not None:
+                html_reports.append(html_path)
+
+        total_elapsed = time.monotonic() - total_started
+
+        typer.echo("\n========== ИТОГ ==========")
+        name_width = max(14, max((len(name) for name, _, _ in summary), default=14))
+        for name, status, elapsed in summary:
+            marker = {"ok": "OK  ", "skip": "SKIP", "fail": "FAIL"}[status]
+            typer.echo(f"  [{marker}] {name:{name_width}s} {elapsed:8.1f} с")
+        typer.echo(f"Общее время: {total_elapsed:.1f} с")
+
+        if open_browser and html_reports:
+            try:
+                open_html_reports_in_chrome(chrome_path, html_reports)
+            except FileNotFoundError as exc:
+                raise typer.BadParameter(str(exc)) from exc
+            typer.echo(f"Открываю {len(html_reports)} HTML-отчётов в Chrome:")
+            for path in html_reports:
+                typer.echo(f"  [ОТКРЫВАЮ] {path.relative_to(ticker_dir)}")
+
+        if any(status == "fail" for _, status, _ in summary):
+            raise typer.Exit(code=1)
 
     return app
