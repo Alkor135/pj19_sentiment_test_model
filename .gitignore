@@ -230,6 +230,7 @@ log/
 backtest/
 group_stats/
 rules.yaml
+rules_wf.yaml
 oos/results/
 walk_forward/results/
 beget/links.yaml
