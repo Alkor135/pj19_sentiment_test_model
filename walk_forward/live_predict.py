@@ -164,7 +164,7 @@ def load_model_context(script_file: str | Path) -> ModelContext:
     )
 
 
-def load_sentiment(path: Path) -> pd.DataFrame:
+def load_sentiment(path: Path, *, require_next_body: bool = True) -> pd.DataFrame:
     """Загружает sentiment PKL и нормализует обязательные колонки."""
 
     if not path.exists():
@@ -173,7 +173,9 @@ def load_sentiment(path: Path) -> pd.DataFrame:
         data = pickle.load(f)
 
     df = pd.DataFrame(data)
-    required = {"source_date", "sentiment", "next_body"}
+    required = {"source_date", "sentiment"}
+    if require_next_body:
+        required.add("next_body")
     missing = required - set(df.columns)
     if missing:
         raise ValueError(
@@ -183,8 +185,15 @@ def load_sentiment(path: Path) -> pd.DataFrame:
 
     df["source_date"] = pd.to_datetime(df["source_date"], errors="coerce").dt.date
     df["sentiment"] = pd.to_numeric(df["sentiment"], errors="coerce")
-    df["next_body"] = pd.to_numeric(df["next_body"], errors="coerce")
-    return df.dropna(subset=["source_date", "sentiment", "next_body"])
+    if "next_body" in df.columns:
+        df["next_body"] = pd.to_numeric(df["next_body"], errors="coerce")
+    else:
+        df["next_body"] = pd.NA
+
+    drop_subset = ["source_date", "sentiment"]
+    if require_next_body:
+        drop_subset.append("next_body")
+    return df.dropna(subset=drop_subset)
 
 
 def index_by_date(df: pd.DataFrame) -> pd.DataFrame:
@@ -203,6 +212,12 @@ def load_indexed_sentiment(path: Path) -> pd.DataFrame:
     """Загружает sentiment PKL как индексированный DataFrame."""
 
     return index_by_date(load_sentiment(path))
+
+
+def load_live_indexed_sentiment(path: Path) -> pd.DataFrame:
+    """Загружает sentiment PKL для live-прогноза без требования `next_body`."""
+
+    return index_by_date(load_sentiment(path, require_next_body=False))
 
 
 def _effective_train_months(settings: dict[str, Any], train_months: int | None) -> int:
@@ -404,7 +419,7 @@ def write_predict_wf(
 
     try:
         rules = load_rules(context.model_path / RULES_WF_FILENAME)
-        indexed = load_indexed_sentiment(context.sentiment_pkl)
+        indexed = load_live_indexed_sentiment(context.sentiment_pkl)
         sentiment = get_sentiment_for_date(indexed, target)
         if sentiment is None:
             write_predict_file(

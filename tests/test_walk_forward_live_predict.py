@@ -131,6 +131,30 @@ def test_write_predict_wf_uses_rules_wf_yaml_and_keeps_predict_file_format(tmp_p
     assert "Предсказанное направление: down" in content
 
 
+def test_write_predict_wf_keeps_target_row_without_next_body(tmp_path) -> None:
+    """Проверяет live-прогноз для строки текущего дня без следующей свечи."""
+
+    model_dir, _ = _write_model_tree(
+        tmp_path,
+        [{"source_date": "2025-04-02", "sentiment": -3, "next_body": None}],
+    )
+    (model_dir / "rules_wf.yaml").write_text(
+        "rules:\n  - {min: -3, max: -3, action: follow}\n",
+        encoding="utf-8",
+    )
+
+    out_file = live_predict.write_predict_wf(
+        model_dir / "sentiment_to_predict_wf.py",
+        target_date=date(2025, 4, 2),
+    )
+
+    content = out_file.read_text(encoding="utf-8")
+    assert "Sentiment: -3.00" in content
+    assert "Action: follow" in content
+    assert "Status: ok" in content
+    assert "Предсказанное направление: down" in content
+
+
 def test_write_backtest_wf_outputs_model_backtest_xlsx(tmp_path) -> None:
     model_dir, script_path = _write_model_tree(
         tmp_path,

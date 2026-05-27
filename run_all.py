@@ -56,10 +56,26 @@ HARD_STEPS: list[Path] = [
     ROOT / "beget" / "sync_files.py",
 
 
+    # ==================== RTS ====================
+    ROOT / "rts" / "shared" / "download_minutes_to_db.py",
+    ROOT / "rts" / "shared" / "convert_minutes_to_days.py",
+    ROOT / "rts" / "shared" / "create_markdown_files.py",
+
+    ROOT / "rts" / "qwen3_14b" / "sentiment_analysis.py",
+
+    ROOT / "rts" / "qwen3_14b" / "sentiment_group_stats.py",
+    ROOT / "rts" / "qwen3_14b" / "rules_recommendation.py",
+    # ROOT / "rts" / "qwen3_14b" / "sentiment_to_predict.py",
+
+    ROOT / "rts" / "qwen3_14b" / "rules_recommendation_wf.py",
+    ROOT / "rts" / "qwen3_14b" / "sentiment_to_predict_wf.py",
+
+    ROOT / "trade" / "trade_rts_ebs.py",
+
     # ==================== MIX ====================
     ROOT / "mix" / "shared" / "download_minutes_to_db.py",
     ROOT / "mix" / "shared" / "convert_minutes_to_days.py",
-    ROOT / "mix" / "shared" / "create_markdown_files.py",
+    # ROOT / "mix" / "shared" / "create_markdown_files.py",
 
     ROOT / "mix" / "gemma4_e4b" / "sentiment_analysis.py",
     ROOT / "mix" / "gemma4_e4b" / "sentiment_group_stats.py",
@@ -79,18 +95,6 @@ HARD_STEPS: list[Path] = [
     ROOT / "si" / "qwen2.5_7b" / "sentiment_to_predict.py",
 
     ROOT / "trade" / "trade_si_ebs.py",
-
-    # ==================== RTS ====================
-    ROOT / "rts" / "shared" / "download_minutes_to_db.py",
-    ROOT / "rts" / "shared" / "convert_minutes_to_days.py",
-    # ROOT / "rts" / "shared" / "create_markdown_files.py",
-
-    ROOT / "rts" / "qwen3_14b" / "sentiment_analysis.py",
-    ROOT / "rts" / "qwen3_14b" / "sentiment_group_stats.py",
-    ROOT / "rts" / "qwen3_14b" / "rules_recommendation.py",
-    ROOT / "rts" / "qwen3_14b" / "sentiment_to_predict.py",
-
-    ROOT / "trade" / "trade_rts_ebs.py",
 
     # ==================== NG ====================
     ROOT / "ng" / "shared" / "download_minutes_to_db.py",
