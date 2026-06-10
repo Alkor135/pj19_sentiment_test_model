@@ -32,7 +32,7 @@ TICKER_REPORT_RUNS: dict[str, TickerRunConfig] = {
     "mix": {
         "only": [
             "gemma3_12b",
-            "gemma4_e2b",
+            # "gemma4_e2b",
             "gemma4_e4b",
             "qwen2.5_14b",
             "qwen2.5_7b",
@@ -45,7 +45,7 @@ TICKER_REPORT_RUNS: dict[str, TickerRunConfig] = {
     "ng": {
         "only": [
             "gemma3_12b",
-            "gemma4_e2b",
+            # "gemma4_e2b",
             "gemma4_e4b",
             "qwen2.5_14b",
             "qwen2.5_7b",
@@ -58,7 +58,7 @@ TICKER_REPORT_RUNS: dict[str, TickerRunConfig] = {
     "rts": {
         "only": [
             "gemma3_12b",
-            "gemma4_e2b",
+            # "gemma4_e2b",
             "gemma4_e4b",
             "qwen2.5_14b",
             "qwen2.5_7b",
@@ -71,7 +71,7 @@ TICKER_REPORT_RUNS: dict[str, TickerRunConfig] = {
     "si": {
         "only": [
             "gemma3_12b",
-            "gemma4_e2b",
+            # "gemma4_e2b",
             "gemma4_e4b",
             "qwen2.5_14b",
             "qwen2.5_7b",
@@ -84,7 +84,7 @@ TICKER_REPORT_RUNS: dict[str, TickerRunConfig] = {
     "spyf": {
         "only": [
             "gemma3_12b",
-            "gemma4_e2b",
+            # "gemma4_e2b",
             "gemma4_e4b",
             "qwen2.5_14b",
             "qwen2.5_7b",
