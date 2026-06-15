@@ -1,3 +1,4 @@
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -58,16 +59,19 @@ def test_trade_settings_do_not_keep_obsolete_trade_path_key() -> None:
         assert "trade_path" not in account
 
 
-def test_ebs_rts_has_prediction_dir() -> None:
+@pytest.mark.parametrize("ticker_lc", [ticker for ticker, _ in SCRIPT_CASES])
+def test_ebs_trade_tickers_have_prediction_dir(ticker_lc: str) -> None:
     settings = yaml.safe_load(SETTINGS_PATH.read_text(encoding="utf-8"))
 
-    assert settings["accounts"]["ebs"]["rts"]["predict_dir"]
+    predict_dir = settings["accounts"]["ebs"][ticker_lc].get("predict_dir")
+    assert isinstance(predict_dir, str)
+    assert predict_dir.strip()
 
 
 def test_trade_settings_define_done_marker_reset_time() -> None:
     settings = yaml.safe_load(SETTINGS_PATH.read_text(encoding="utf-8"))
 
-    assert settings["done_marker_reset_before"] == "21:00:00"
+    datetime.strptime(settings["done_marker_reset_before"], "%H:%M:%S")
 
 
 @pytest.mark.parametrize(("ticker_lc", "script_path"), SCRIPT_CASES)

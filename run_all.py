@@ -55,11 +55,25 @@ HARD_STEPS: list[Path] = [
     # Общий этап: синхронизация RSS-БД и логов с удалённого сервера.
     ROOT / "beget" / "sync_files.py",
 
+    # ==================== MIX ====================
+    ROOT / "mix" / "shared" / "download_minutes_to_db.py",
+    ROOT / "mix" / "shared" / "convert_minutes_to_days.py",
+    ROOT / "mix" / "shared" / "create_markdown_files.py",
+
+    ROOT / "mix" / "gemma3_12b" / "sentiment_analysis.py",
+    ROOT / "mix" / "gemma3_12b" / "sentiment_group_stats.py",
+    ROOT / "mix" / "gemma3_12b" / "rules_recommendation.py",
+    # ROOT / "mix" / "gemma3_12b" / "sentiment_to_predict.py",
+
+    ROOT / "mix" / "gemma3_12b" / "rules_recommendation_wf.py",
+    ROOT / "mix" / "gemma3_12b" / "sentiment_to_predict_wf.py",
+
+    ROOT / "trade" / "trade_mix_ebs.py",
 
     # ==================== RTS ====================
     ROOT / "rts" / "shared" / "download_minutes_to_db.py",
     ROOT / "rts" / "shared" / "convert_minutes_to_days.py",
-    ROOT / "rts" / "shared" / "create_markdown_files.py",
+    # ROOT / "rts" / "shared" / "create_markdown_files.py",
 
     ROOT / "rts" / "qwen3_14b" / "sentiment_analysis.py",
 
@@ -71,18 +85,6 @@ HARD_STEPS: list[Path] = [
     ROOT / "rts" / "qwen3_14b" / "sentiment_to_predict_wf.py",
 
     ROOT / "trade" / "trade_rts_ebs.py",
-
-    # ==================== MIX ====================
-    ROOT / "mix" / "shared" / "download_minutes_to_db.py",
-    ROOT / "mix" / "shared" / "convert_minutes_to_days.py",
-    # ROOT / "mix" / "shared" / "create_markdown_files.py",
-
-    ROOT / "mix" / "gemma4_e4b" / "sentiment_analysis.py",
-    ROOT / "mix" / "gemma4_e4b" / "sentiment_group_stats.py",
-    ROOT / "mix" / "gemma4_e4b" / "rules_recommendation.py",
-    ROOT / "mix" / "gemma4_e4b" / "sentiment_to_predict.py",
-
-    ROOT / "trade" / "trade_mix_ebs.py",
 
     # ==================== SI ====================
     ROOT / "si" / "shared" / "download_minutes_to_db.py",
@@ -174,10 +176,10 @@ HARD_STEPS: list[Path] = [
 
 SOFT_STEPS: list[Path] = [
     # ==================== MIX ====================
-    ROOT / "mix" / "gemma3_12b" / "sentiment_analysis.py",
-    ROOT / "mix" / "gemma3_12b" / "sentiment_group_stats.py",
-    ROOT / "mix" / "gemma3_12b" / "rules_recommendation.py",
-    ROOT / "mix" / "gemma3_12b" / "sentiment_to_predict.py",
+    ROOT / "mix" / "gemma4_e4b" / "sentiment_analysis.py",
+    ROOT / "mix" / "gemma4_e4b" / "sentiment_group_stats.py",
+    ROOT / "mix" / "gemma4_e4b" / "rules_recommendation.py",
+    ROOT / "mix" / "gemma4_e4b" / "sentiment_to_predict.py",
 
     ROOT / "mix" / "gemma4_e2b" / "sentiment_analysis.py",
     ROOT / "mix" / "gemma4_e2b" / "sentiment_group_stats.py",
