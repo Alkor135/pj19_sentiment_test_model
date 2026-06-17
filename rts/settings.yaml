@@ -7,7 +7,7 @@ common:
   ticker: 'RTS'  # Важно: тикер в верхнем регистре для корректного формирования имён БД и Markdown
   ticker_lc: 'rts'  # Важно: тикер в нижнем регистре для формирования путей к файлам и папкам
   ticker_close: 'RIM6'              # Фьючерс для закрытия позиции (trade)
-  ticker_open: 'RIM6'               # Фьючерс для открытия позиции (trade)
+  ticker_open: 'RIU6'               # Фьючерс для открытия позиции (trade)
   quantity_test: 1                  # Количество контрактов для бэктеста и аналитики
   rules_train_months: 6             # Количество месяцев истории для live walk-forward rules_wf.yaml
   rules_min_train_rows: 20          # Минимум строк обучения для построения live walk-forward правил
