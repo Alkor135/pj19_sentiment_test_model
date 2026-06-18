@@ -6,7 +6,7 @@
 common:
   ticker: 'MIX'  # Важно: тикер в верхнем регистре для корректного формирования имён БД и Markdown
   ticker_lc: 'mix'  # Важно: тикер в нижнем регистре для формирования путей к файлам и папкам
-  ticker_close: 'MXM6'              # Фьючерс для закрытия позиции (trade)
+  ticker_close: 'MXU6'              # Фьючерс для закрытия позиции (trade)
   ticker_open: 'MXU6'               # Фьючерс для открытия позиции (trade)
   quantity_test: 1                  # Количество контрактов для бэктеста и аналитики
   rules_train_months: 6             # Количество месяцев истории для live walk-forward rules_wf.yaml
