@@ -14,12 +14,18 @@
 
     Файл перезаписывается каждые PERIOD_MS миллисекунд и всегда содержит
     ровно последние TAIL_BARS баров по каждому тикеру (не разрастается).
+
+    Полная таблица биржевых кодов месяцев:
+    F янв, G фев, H мар, J апр, K май, M июн, N июл, Q авг, U сен, V окт, X ноя, Z дек.
+
+    Для RTS и MIX:
+    H мар, M июн, U сен, Z дек.
 ]]
 
 local OUT       = "C:\\Users\\Alkor\\VSCode\\pj19_sentiment_test_model\\trade\\quik_export\\minutes.csv"
 local OUT_TMP   = OUT .. ".tmp"
 local CLASS     = "SPBFUT"
-local TICKERS   = {"RIM6", "MXM6", "NGM6", "SiM6", "SFM6"}
+local TICKERS   = {"RIU6", "MXU6", "RIZ6", "MXZ6", "RIH7", "MXH7"}
 local PERIOD_MS = 30000
 local TAIL_BARS = 1800
 
