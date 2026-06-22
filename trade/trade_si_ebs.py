@@ -25,7 +25,7 @@ _TRADE_DIR = Path(__file__).resolve().parent
 if str(_TRADE_DIR) not in sys.path:
     sys.path.insert(0, str(_TRADE_DIR))
 from read_positions import get_position, get_exported_at, is_export_fresh, has_yaml_override
-from rebalance import build_rebalance_orders
+from rebalance import build_rebalance_orders, build_rollover_orders
 
 # --- Конфигурация из si/settings.yaml (common для контрактов) ---
 ticker_lc = 'si'
@@ -230,8 +230,14 @@ logger.info(f"Текущая позиция {ticker_open}: {current_position} к
 delta = target_position - current_position
 logger.info(f"Дельта (цель - текущая): {delta}")
 
-if delta == 0:
-    logger.info("Позиция уже в целевом состоянии. Ордеры не требуются.\n")
+old_position = 0
+if ticker_close != ticker_open:
+    old_position = get_position(trade_account, ticker_close)
+    logger.info(f"Текущая позиция {ticker_close}: {old_position} контрактов")
+
+orders = build_rollover_orders(current_position, target_position, old_position)
+if not orders:
+    logger.info("Позиции уже в целевом состоянии. Ордеры не требуются.\n")
     done_marker.touch()
     sys.exit(0)
 
@@ -239,24 +245,16 @@ if delta == 0:
 trans_id = get_next_trans_id(trade_filepath)
 trade_content = ""
 
-# --- Логика: приводим текущую позицию к целевой ---
-for action, quantity, reason in build_rebalance_orders(current_position, target_position):
-    trade_content += create_trade_block(trans_id, ticker_open, action, str(quantity))
-    logger.info(f"  {reason}: {action} {quantity} контрактов {ticker_open}")
-    trans_id += 1
-
-# --- Ролловер: если ticker_close ≠ ticker_open, закрываем позицию в старом контракте ---
-if ticker_close != ticker_open:
-    old_position = get_position(trade_account, ticker_close)
-    if old_position != 0:
+# --- Логика: ребалансируем новый контракт и закрываем старый при ролловере ---
+for contract_role, action, quantity, reason in orders:
+    if contract_role == "ticker_close":
         trans_id += 1
-        close_qty = abs(old_position)
-        if old_position > 0:
-            action = 'Продажа'
-        else:
-            action = 'Покупка'
-        trade_content += create_trade_block(trans_id, ticker_close, action, str(close_qty))
-        logger.info(f"  Ролловер: закрытие позиции {old_position} контрактов {ticker_close} ({action})")
+        ticker = ticker_close
+    else:
+        ticker = ticker_open
+    trade_content += create_trade_block(trans_id, ticker, action, str(quantity))
+    logger.info(f"  {reason}: {action} {quantity} контрактов {ticker}")
+    trans_id += 1
 
 # --- Запись результата ---
 if trade_content:

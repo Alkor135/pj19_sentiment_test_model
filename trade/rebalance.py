@@ -35,3 +35,34 @@ def build_rebalance_orders(current_position: int, target_position: int) -> list[
     else:
         reason = "Открытие шорта" if current_position == 0 else "Увеличение шорта"
     return [("Продажа", quantity, reason)]
+
+
+def build_rollover_orders(
+    current_position: int,
+    target_position: int,
+    old_position: int,
+) -> list[tuple[str, str, int, str]]:
+    """Возвращает заявки нового и старого контрактов при ролловере.
+
+    Сначала сохраняет обычный порядок ребалансировки нового контракта, включая
+    закрытие и открытие при перевороте. Затем, независимо от дельты нового
+    контракта, добавляет закрытие ненулевой позиции старого контракта.
+    """
+    orders = [
+        ("ticker_open", action, quantity, reason)
+        for action, quantity, reason in build_rebalance_orders(
+            current_position,
+            target_position,
+        )
+    ]
+
+    if old_position != 0:
+        action = "Продажа" if old_position > 0 else "Покупка"
+        reason = (
+            "Ролловер: закрытие лонга"
+            if old_position > 0
+            else "Ролловер: закрытие шорта"
+        )
+        orders.append(("ticker_close", action, abs(old_position), reason))
+
+    return orders
